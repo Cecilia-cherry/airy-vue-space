@@ -14,9 +14,13 @@ import { toast } from "sonner";
 
 type AuthMode = "login" | "register";
 
+type AuthUser = { phone: string };
+
 type AuthDialogContextValue = {
   open: (mode?: AuthMode) => void;
   close: () => void;
+  user: AuthUser | null;
+  logout: () => void;
 };
 
 const AuthDialogContext = createContext<AuthDialogContextValue | null>(null);
