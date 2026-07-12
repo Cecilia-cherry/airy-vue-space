@@ -11,6 +11,7 @@ const nav = [
 ];
 
 export function Header() {
+  const { open } = useAuthDialog();
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="container-hero flex h-18 items-center justify-between py-4">
