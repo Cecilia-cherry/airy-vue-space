@@ -11,7 +11,8 @@ const nav = [
 ];
 
 export function Header() {
-  const { open } = useAuthDialog();
+  const { open, user, logout } = useAuthDialog();
+  const maskedPhone = user ? `${user.phone.slice(0, 3)}****${user.phone.slice(7)}` : "";
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="container-hero flex h-18 items-center justify-between py-4">
