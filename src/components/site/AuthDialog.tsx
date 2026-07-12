@@ -105,7 +105,7 @@ function LoginView({
   onSuccess,
 }: {
   onSwitch: () => void;
-  onSuccess: () => void;
+  onSuccess: (phone: string) => void;
 }) {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
