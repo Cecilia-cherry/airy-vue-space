@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
+import { useAuthDialog } from "./AuthDialog";
+
 const nav = [
   { label: "题库", to: "/" },
   { label: "错题本", to: "/" },
