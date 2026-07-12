@@ -39,10 +39,16 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <button className="hidden text-sm text-ink-soft transition-colors hover:text-ink md:inline">
+          <button
+            onClick={() => open("login")}
+            className="hidden text-sm text-ink-soft transition-colors hover:text-ink md:inline"
+          >
             登录
           </button>
-          <button className="inline-flex items-center gap-1.5 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-background transition-transform hover:-translate-y-0.5">
+          <button
+            onClick={() => open("register")}
+            className="inline-flex items-center gap-1.5 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-background transition-transform hover:-translate-y-0.5"
+          >
             免费开始刷题
             <span aria-hidden>→</span>
           </button>
