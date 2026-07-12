@@ -140,7 +140,7 @@ function LoginView({
         return;
       }
       toast.success("登录成功");
-      onSuccess();
+      onSuccess(parsed.data.phone);
     }, 250);
   }
 
