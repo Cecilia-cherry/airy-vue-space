@@ -14,9 +14,13 @@ import { toast } from "sonner";
 
 type AuthMode = "login" | "register";
 
+type AuthUser = { phone: string };
+
 type AuthDialogContextValue = {
   open: (mode?: AuthMode) => void;
   close: () => void;
+  user: AuthUser | null;
+  logout: () => void;
 };
 
 const AuthDialogContext = createContext<AuthDialogContextValue | null>(null);
@@ -51,6 +55,7 @@ const registered = new Map<string, string>();
 export function AuthDialogProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   const value = useMemo<AuthDialogContextValue>(
     () => ({
@@ -59,8 +64,13 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
         setIsOpen(true);
       },
       close: () => setIsOpen(false),
+      user,
+      logout: () => {
+        setUser(null);
+        toast.success("已退出登录");
+      },
     }),
-    [],
+    [user],
   );
 
   return (
@@ -71,7 +81,10 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
           {mode === "login" ? (
             <LoginView
               onSwitch={() => setMode("register")}
-              onSuccess={() => setIsOpen(false)}
+              onSuccess={(phone) => {
+                setUser({ phone });
+                setIsOpen(false);
+              }}
             />
           ) : (
             <RegisterView onDone={() => setMode("login")} />
@@ -92,7 +105,7 @@ function LoginView({
   onSuccess,
 }: {
   onSwitch: () => void;
-  onSuccess: () => void;
+  onSuccess: (phone: string) => void;
 }) {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -127,7 +140,7 @@ function LoginView({
         return;
       }
       toast.success("登录成功");
-      onSuccess();
+      onSuccess(parsed.data.phone);
     }, 250);
   }
 

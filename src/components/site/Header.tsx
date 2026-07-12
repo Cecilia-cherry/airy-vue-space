@@ -11,7 +11,8 @@ const nav = [
 ];
 
 export function Header() {
-  const { open } = useAuthDialog();
+  const { open, user, logout } = useAuthDialog();
+  const maskedPhone = user ? `${user.phone.slice(0, 3)}****${user.phone.slice(7)}` : "";
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="container-hero flex h-18 items-center justify-between py-4">
@@ -39,19 +40,33 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => open("login")}
-            className="hidden text-sm text-ink-soft transition-colors hover:text-ink md:inline"
-          >
-            登录
-          </button>
-          <button
-            onClick={() => open("register")}
-            className="inline-flex items-center gap-1.5 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-background transition-transform hover:-translate-y-0.5"
-          >
-            免费开始刷题
-            <span aria-hidden>→</span>
-          </button>
+          {user ? (
+            <>
+              <span className="hidden text-sm text-ink-soft md:inline">{maskedPhone}</span>
+              <button
+                onClick={logout}
+                className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 bg-background px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-ink/5"
+              >
+                退出登录
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => open("login")}
+                className="hidden text-sm text-ink-soft transition-colors hover:text-ink md:inline"
+              >
+                登录
+              </button>
+              <button
+                onClick={() => open("register")}
+                className="inline-flex items-center gap-1.5 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-background transition-transform hover:-translate-y-0.5"
+              >
+                免费开始刷题
+                <span aria-hidden>→</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>
