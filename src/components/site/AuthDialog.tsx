@@ -55,6 +55,7 @@ const registered = new Map<string, string>();
 export function AuthDialogProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   const value = useMemo<AuthDialogContextValue>(
     () => ({
@@ -63,8 +64,13 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
         setIsOpen(true);
       },
       close: () => setIsOpen(false),
+      user,
+      logout: () => {
+        setUser(null);
+        toast.success("已退出登录");
+      },
     }),
-    [],
+    [user],
   );
 
   return (
@@ -75,7 +81,10 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
           {mode === "login" ? (
             <LoginView
               onSwitch={() => setMode("register")}
-              onSuccess={() => setIsOpen(false)}
+              onSuccess={(phone) => {
+                setUser({ phone });
+                setIsOpen(false);
+              }}
             />
           ) : (
             <RegisterView onDone={() => setMode("login")} />
