@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
+import { useAuthDialog } from "./AuthDialog";
+
 const nav = [
   { label: "题库", to: "/" },
   { label: "错题本", to: "/" },
@@ -9,6 +11,7 @@ const nav = [
 ];
 
 export function Header() {
+  const { open } = useAuthDialog();
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="container-hero flex h-18 items-center justify-between py-4">
@@ -36,10 +39,16 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <button className="hidden text-sm text-ink-soft transition-colors hover:text-ink md:inline">
+          <button
+            onClick={() => open("login")}
+            className="hidden text-sm text-ink-soft transition-colors hover:text-ink md:inline"
+          >
             登录
           </button>
-          <button className="inline-flex items-center gap-1.5 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-background transition-transform hover:-translate-y-0.5">
+          <button
+            onClick={() => open("register")}
+            className="inline-flex items-center gap-1.5 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-background transition-transform hover:-translate-y-0.5"
+          >
             免费开始刷题
             <span aria-hidden>→</span>
           </button>
