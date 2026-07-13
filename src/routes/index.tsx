@@ -4,6 +4,7 @@ import { Hero } from "@/components/site/Hero";
 import { Features } from "@/components/site/Features";
 import { QuestionBanks } from "@/components/site/QuestionBanks";
 import { Workflow } from "@/components/site/Workflow";
+import { ModuleMap } from "@/components/site/ModuleMap";
 import { Pricing } from "@/components/site/Pricing";
 import { Footer } from "@/components/site/Footer";
 
