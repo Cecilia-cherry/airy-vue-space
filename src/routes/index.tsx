@@ -21,6 +21,7 @@ function Index() {
         <Features />
         <QuestionBanks />
         <Workflow />
+        <ModuleMap />
         <Pricing />
       </main>
       <Footer />
