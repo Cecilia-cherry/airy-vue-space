@@ -3,12 +3,12 @@ import { Link } from "@tanstack/react-router";
 import { useAuthDialog } from "./AuthDialog";
 
 const nav = [
-  { label: "题库", to: "/" },
-  { label: "错题本", to: "/" },
-  { label: "涂写练习", to: "/" },
-  { label: "定价", to: "/" },
-  { label: "关于", to: "/" },
-];
+  { label: "题库", to: "/question-bank" },
+  { label: "错题本", to: "/mistakes" },
+  { label: "涂写练习", to: "/writing" },
+  { label: "定价", to: "/pricing" },
+  { label: "关于", to: "/about" },
+] as const;
 
 export function Header() {
   const { open, user, logout } = useAuthDialog();
