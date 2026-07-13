@@ -52,7 +52,10 @@ export const Route = createFileRoute("/question-bank/$bankId")({
 const PAGE_SIZE = 8;
 
 function BankDetail() {
-  const { bank, questions } = Route.useLoaderData();
+  const { bank, questions } = Route.useLoaderData() as {
+    bank: NonNullable<ReturnType<typeof getBank>>;
+    questions: ReturnType<typeof getQuestions>;
+  };
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [onlyFav, setOnlyFav] = useState(false);

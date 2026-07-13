@@ -15,6 +15,7 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MistakesRouteImport } from './routes/mistakes'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as QuestionBankBankIdRouteImport } from './routes/question-bank.$bankId'
 
 const WritingRoute = WritingRouteImport.update({
   id: '/writing',
@@ -46,22 +47,29 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QuestionBankBankIdRoute = QuestionBankBankIdRouteImport.update({
+  id: '/$bankId',
+  path: '/$bankId',
+  getParentRoute: () => QuestionBankRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/mistakes': typeof MistakesRoute
   '/pricing': typeof PricingRoute
-  '/question-bank': typeof QuestionBankRoute
+  '/question-bank': typeof QuestionBankRouteWithChildren
   '/writing': typeof WritingRoute
+  '/question-bank/$bankId': typeof QuestionBankBankIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/mistakes': typeof MistakesRoute
   '/pricing': typeof PricingRoute
-  '/question-bank': typeof QuestionBankRoute
+  '/question-bank': typeof QuestionBankRouteWithChildren
   '/writing': typeof WritingRoute
+  '/question-bank/$bankId': typeof QuestionBankBankIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -69,8 +77,9 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/mistakes': typeof MistakesRoute
   '/pricing': typeof PricingRoute
-  '/question-bank': typeof QuestionBankRoute
+  '/question-bank': typeof QuestionBankRouteWithChildren
   '/writing': typeof WritingRoute
+  '/question-bank/$bankId': typeof QuestionBankBankIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,8 +90,16 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/question-bank'
     | '/writing'
+    | '/question-bank/$bankId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/mistakes' | '/pricing' | '/question-bank' | '/writing'
+  to:
+    | '/'
+    | '/about'
+    | '/mistakes'
+    | '/pricing'
+    | '/question-bank'
+    | '/writing'
+    | '/question-bank/$bankId'
   id:
     | '__root__'
     | '/'
@@ -91,6 +108,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/question-bank'
     | '/writing'
+    | '/question-bank/$bankId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -98,7 +116,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   MistakesRoute: typeof MistakesRoute
   PricingRoute: typeof PricingRoute
-  QuestionBankRoute: typeof QuestionBankRoute
+  QuestionBankRoute: typeof QuestionBankRouteWithChildren
   WritingRoute: typeof WritingRoute
 }
 
@@ -146,15 +164,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/question-bank/$bankId': {
+      id: '/question-bank/$bankId'
+      path: '/$bankId'
+      fullPath: '/question-bank/$bankId'
+      preLoaderRoute: typeof QuestionBankBankIdRouteImport
+      parentRoute: typeof QuestionBankRoute
+    }
   }
 }
+
+interface QuestionBankRouteChildren {
+  QuestionBankBankIdRoute: typeof QuestionBankBankIdRoute
+}
+
+const QuestionBankRouteChildren: QuestionBankRouteChildren = {
+  QuestionBankBankIdRoute: QuestionBankBankIdRoute,
+}
+
+const QuestionBankRouteWithChildren = QuestionBankRoute._addFileChildren(
+  QuestionBankRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   MistakesRoute: MistakesRoute,
   PricingRoute: PricingRoute,
-  QuestionBankRoute: QuestionBankRoute,
+  QuestionBankRoute: QuestionBankRouteWithChildren,
   WritingRoute: WritingRoute,
 }
 export const routeTree = rootRouteImport
