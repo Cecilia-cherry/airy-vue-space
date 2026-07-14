@@ -34,9 +34,7 @@ export function Features() {
     <section className="container-hero py-28">
       <div className="grid grid-cols-12 gap-8">
         <div className="col-span-4">
-          <span className="text-xs uppercase tracking-[0.25em] text-primary">
-            Core Modules
-          </span>
+          <span className="text-xs uppercase tracking-[0.25em] text-primary">Core Modules</span>
           <h2 className="mt-4 font-display text-5xl leading-tight text-ink">
             不是又一个刷题 App，
             <br />

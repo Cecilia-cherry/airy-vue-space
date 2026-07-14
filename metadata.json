@@ -1,0 +1,6 @@
+{
+  "name": "WordMaster 单词大师",
+  "description": "基于 AI 的全维度英语学习系统，包含词汇积累、智能错题本及 Canvas 交互系统。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

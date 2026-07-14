@@ -49,13 +49,50 @@ const registerSchema = loginSchema
     message: "两次输入的密码不一致",
   });
 
-// In-memory "registered users" store — UI-only until backend is wired.
-const registered = new Map<string, string>();
+// Helper functions for registered users in localStorage to ensure persistent login and registration
+function getRegisteredUsers(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const data = localStorage.getItem("wordmaster_registered_users");
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+}
+
+function registerUserInStorage(phone: string, pass: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const users = getRegisteredUsers();
+    if (users[phone]) return false; // Already registered
+    users[phone] = pass;
+    localStorage.setItem("wordmaster_registered_users", JSON.stringify(users));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function checkUserExistsInStorage(phone: string): boolean {
+  return phone in getRegisteredUsers();
+}
+
+function verifyUserPasswordInStorage(phone: string, pass: string): boolean {
+  return getRegisteredUsers()[phone] === pass;
+}
 
 export function AuthDialogProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = localStorage.getItem("wordmaster_current_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
   const value = useMemo<AuthDialogContextValue>(
     () => ({
@@ -67,6 +104,9 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
       user,
       logout: () => {
         setUser(null);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("wordmaster_current_user");
+        }
         toast.success("已退出登录");
       },
     }),
@@ -82,7 +122,11 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
             <LoginView
               onSwitch={() => setMode("register")}
               onSuccess={(phone) => {
-                setUser({ phone });
+                const newUser = { phone };
+                setUser(newUser);
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("wordmaster_current_user", JSON.stringify(newUser));
+                }
                 setIsOpen(false);
               }}
             />
@@ -127,15 +171,15 @@ function LoginView({
     setErrors({});
     setSubmitting(true);
 
-    // UI-only: check the in-memory store; if unknown phone, prompt to register.
+    // Check against persistent localStorage
     setTimeout(() => {
       setSubmitting(false);
-      if (!registered.has(parsed.data.phone)) {
+      if (!checkUserExistsInStorage(parsed.data.phone)) {
         toast.info("该手机号未注册，请先注册账号");
         onSwitch();
         return;
       }
-      if (registered.get(parsed.data.phone) !== parsed.data.password) {
+      if (!verifyUserPasswordInStorage(parsed.data.phone, parsed.data.password)) {
         setErrors({ password: "手机号或密码错误" });
         return;
       }
@@ -240,11 +284,11 @@ function RegisterView({ onDone }: { onDone: () => void }) {
 
     setTimeout(() => {
       setSubmitting(false);
-      if (registered.has(parsed.data.phone)) {
+      const success = registerUserInStorage(parsed.data.phone, parsed.data.password);
+      if (!success) {
         setErrors({ phone: "该手机号已注册，请直接登录" });
         return;
       }
-      registered.set(parsed.data.phone, parsed.data.password);
       toast.success("注册成功，请使用新账号登录");
       onDone();
     }, 250);

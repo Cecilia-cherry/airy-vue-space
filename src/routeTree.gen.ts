@@ -12,7 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WritingRouteImport } from './routes/writing'
 import { Route as QuestionBankRouteImport } from './routes/question-bank'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as MistakesRouteImport } from './routes/mistakes'
+import { Route as CustomQuestionsRouteImport } from './routes/custom-questions'
+import { Route as BanksRouteImport } from './routes/banks'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QuestionBankBankIdRouteImport } from './routes/question-bank.$bankId'
@@ -32,9 +35,24 @@ const PricingRoute = PricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PracticeRoute = PracticeRouteImport.update({
+  id: '/practice',
+  path: '/practice',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MistakesRoute = MistakesRouteImport.update({
   id: '/mistakes',
   path: '/mistakes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomQuestionsRoute = CustomQuestionsRouteImport.update({
+  id: '/custom-questions',
+  path: '/custom-questions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BanksRoute = BanksRouteImport.update({
+  id: '/banks',
+  path: '/banks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -56,7 +74,10 @@ const QuestionBankBankIdRoute = QuestionBankBankIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/banks': typeof BanksRoute
+  '/custom-questions': typeof CustomQuestionsRoute
   '/mistakes': typeof MistakesRoute
+  '/practice': typeof PracticeRoute
   '/pricing': typeof PricingRoute
   '/question-bank': typeof QuestionBankRouteWithChildren
   '/writing': typeof WritingRoute
@@ -65,7 +86,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/banks': typeof BanksRoute
+  '/custom-questions': typeof CustomQuestionsRoute
   '/mistakes': typeof MistakesRoute
+  '/practice': typeof PracticeRoute
   '/pricing': typeof PricingRoute
   '/question-bank': typeof QuestionBankRouteWithChildren
   '/writing': typeof WritingRoute
@@ -75,7 +99,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/banks': typeof BanksRoute
+  '/custom-questions': typeof CustomQuestionsRoute
   '/mistakes': typeof MistakesRoute
+  '/practice': typeof PracticeRoute
   '/pricing': typeof PricingRoute
   '/question-bank': typeof QuestionBankRouteWithChildren
   '/writing': typeof WritingRoute
@@ -86,7 +113,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/banks'
+    | '/custom-questions'
     | '/mistakes'
+    | '/practice'
     | '/pricing'
     | '/question-bank'
     | '/writing'
@@ -95,7 +125,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/banks'
+    | '/custom-questions'
     | '/mistakes'
+    | '/practice'
     | '/pricing'
     | '/question-bank'
     | '/writing'
@@ -104,7 +137,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/banks'
+    | '/custom-questions'
     | '/mistakes'
+    | '/practice'
     | '/pricing'
     | '/question-bank'
     | '/writing'
@@ -114,7 +150,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  BanksRoute: typeof BanksRoute
+  CustomQuestionsRoute: typeof CustomQuestionsRoute
   MistakesRoute: typeof MistakesRoute
+  PracticeRoute: typeof PracticeRoute
   PricingRoute: typeof PricingRoute
   QuestionBankRoute: typeof QuestionBankRouteWithChildren
   WritingRoute: typeof WritingRoute
@@ -143,11 +182,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/practice': {
+      id: '/practice'
+      path: '/practice'
+      fullPath: '/practice'
+      preLoaderRoute: typeof PracticeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mistakes': {
       id: '/mistakes'
       path: '/mistakes'
       fullPath: '/mistakes'
       preLoaderRoute: typeof MistakesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/custom-questions': {
+      id: '/custom-questions'
+      path: '/custom-questions'
+      fullPath: '/custom-questions'
+      preLoaderRoute: typeof CustomQuestionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/banks': {
+      id: '/banks'
+      path: '/banks'
+      fullPath: '/banks'
+      preLoaderRoute: typeof BanksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -189,7 +249,10 @@ const QuestionBankRouteWithChildren = QuestionBankRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  BanksRoute: BanksRoute,
+  CustomQuestionsRoute: CustomQuestionsRoute,
   MistakesRoute: MistakesRoute,
+  PracticeRoute: PracticeRoute,
   PricingRoute: PricingRoute,
   QuestionBankRoute: QuestionBankRouteWithChildren,
   WritingRoute: WritingRoute,
@@ -197,3 +260,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

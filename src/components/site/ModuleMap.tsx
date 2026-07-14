@@ -3,8 +3,18 @@ const groups = [
     label: "核心学习闭环",
     swatch: "mint",
     modules: [
-      { id: "M03", name: "在线刷题引擎", p: "P0", desc: "顺序 / 随机 / 专项 / 模考 / 每日一练五种模式，即时判分" },
-      { id: "M04", name: "智能错题本", p: "P0", desc: "错题自动归档为个性化词库，艾宾浩斯曲线推送复习" },
+      {
+        id: "M03",
+        name: "在线刷题引擎",
+        p: "P0",
+        desc: "顺序 / 随机 / 专项 / 模考 / 每日一练五种模式，即时判分",
+      },
+      {
+        id: "M04",
+        name: "智能错题本",
+        p: "P0",
+        desc: "错题自动归档为个性化词库，艾宾浩斯曲线推送复习",
+      },
       { id: "M05", name: "试题解析与释义", p: "P0", desc: "AI 三段式讲解，点击生词即查词典与考点" },
       { id: "M06", name: "Canvas 涂写", p: "P0", desc: "内置手写画布，圈画长难句、批注解题思路" },
     ],
@@ -13,7 +23,12 @@ const groups = [
     label: "题库与内容",
     swatch: "sky",
     modules: [
-      { id: "M02", name: "题库管理系统", p: "P0", desc: "考研 / 托福 / 雅思 / 四六级分类，筛选排序搜索" },
+      {
+        id: "M02",
+        name: "题库管理系统",
+        p: "P0",
+        desc: "考研 / 托福 / 雅思 / 四六级分类，筛选排序搜索",
+      },
       { id: "M07", name: "自定义题库上传", p: "P0", desc: "PDF / Word / 拍照上传，OCR 自动切题" },
       { id: "M14", name: "搜索与推荐", p: "P1", desc: "Elasticsearch 全文检索 + 个性化推荐" },
     ],
@@ -22,8 +37,18 @@ const groups = [
     label: "账户与商业化",
     swatch: "butter",
     modules: [
-      { id: "M01", name: "用户认证与账户", p: "P0", desc: "邮箱 / 手机号双通道，JWT 双 Token 策略" },
-      { id: "M09", name: "会员与支付", p: "P0", desc: "月度 / 年度 / 终身订阅，支付宝 / 微信 / Stripe" },
+      {
+        id: "M01",
+        name: "用户认证与账户",
+        p: "P0",
+        desc: "邮箱 / 手机号双通道，JWT 双 Token 策略",
+      },
+      {
+        id: "M09",
+        name: "会员与支付",
+        p: "P0",
+        desc: "月度 / 年度 / 终身订阅，支付宝 / 微信 / Stripe",
+      },
       { id: "M13", name: "管理后台", p: "P1", desc: "题库审核、用户管理、运营数据看板" },
     ],
   },
@@ -51,13 +76,10 @@ export function ModuleMap() {
     <section className="container-hero py-28">
       <div className="grid grid-cols-12 gap-8">
         <div className="col-span-4">
-          <span className="text-xs uppercase tracking-[0.25em] text-primary">
-            Module Map · 15
-          </span>
+          <span className="text-xs uppercase tracking-[0.25em] text-primary">Module Map · 15</span>
           <h2 className="mt-4 font-display text-5xl leading-tight text-ink">
             一张图看懂 <br />
-            WordMaster 的
-            <span className="italic text-primary"> 全景能力</span>。
+            WordMaster 的<span className="italic text-primary"> 全景能力</span>。
           </h2>
           <p className="mt-6 max-w-sm text-ink-soft">
             从核心刷题引擎到运营增长，15 个模块按优先级分阶段落地，共同支撑"错题即词库"的学习闭环。
@@ -106,9 +128,7 @@ export function ModuleMap() {
                             {m.p}
                           </span>
                         </div>
-                        <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-                          {m.desc}
-                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-ink-soft">{m.desc}</p>
                       </div>
                     </li>
                   ))}

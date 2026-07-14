@@ -24,8 +24,8 @@ export function Hero() {
           </h1>
 
           <p className="mt-8 max-w-xl text-lg leading-relaxed text-ink-soft">
-            WordMaster 把每一次答题都变成词汇积累。答错自动收录、艾宾浩斯智能复习、
-            AI 深度讲解，让考研英语、TPO、剑雅真题里的每个生词，都真正留在脑子里。
+            WordMaster 把每一次答题都变成词汇积累。答错自动收录、艾宾浩斯智能复习、 AI
+            深度讲解，让考研英语、TPO、剑雅真题里的每个生词，都真正留在脑子里。
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
@@ -136,9 +136,7 @@ function PracticeCard() {
             >
               <span
                 className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
-                  o.correct
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-ink-soft"
+                  o.correct ? "bg-primary text-primary-foreground" : "bg-muted text-ink-soft"
                 }`}
               >
                 {o.k}

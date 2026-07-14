@@ -25,9 +25,7 @@ export function Workflow() {
   return (
     <section className="container-hero py-28">
       <div className="mx-auto max-w-2xl text-center">
-        <span className="text-xs uppercase tracking-[0.25em] text-primary">
-          How it works
-        </span>
+        <span className="text-xs uppercase tracking-[0.25em] text-primary">How it works</span>
         <h2 className="mt-3 font-display text-5xl leading-tight text-ink">
           从答题到掌握，
           <br />

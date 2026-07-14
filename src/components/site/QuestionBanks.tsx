@@ -31,9 +31,7 @@ export function QuestionBanks() {
       <div className="container-hero py-24">
         <div className="flex items-end justify-between">
           <div>
-            <span className="text-xs uppercase tracking-[0.25em] text-primary">
-              Question Banks
-            </span>
+            <span className="text-xs uppercase tracking-[0.25em] text-primary">Question Banks</span>
             <h2 className="mt-3 font-display text-5xl text-ink">六大题库，一次订阅</h2>
           </div>
           <p className="max-w-sm text-sm text-ink-soft">
@@ -67,9 +65,7 @@ export function QuestionBanks() {
                 </ul>
                 <div className="mt-8 flex items-center justify-between border-t border-border pt-4 text-sm">
                   <span className="text-ink-soft">进入题库</span>
-                  <span className="text-ink transition-transform group-hover:translate-x-1">
-                    →
-                  </span>
+                  <span className="text-ink transition-transform group-hover:translate-x-1">→</span>
                 </div>
               </div>
             </div>

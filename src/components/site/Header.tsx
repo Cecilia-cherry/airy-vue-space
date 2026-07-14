@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
-
+import { useState } from "react";
+import { Menu } from "lucide-react";
 import { useAuthDialog } from "./AuthDialog";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const nav = [
   { label: "题库", to: "/question-bank" },
@@ -12,6 +14,7 @@ const nav = [
 
 export function Header() {
   const { open, user, logout } = useAuthDialog();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const maskedPhone = user ? `${user.phone.slice(0, 3)}****${user.phone.slice(7)}` : "";
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
@@ -32,6 +35,7 @@ export function Header() {
             <Link
               key={item.label}
               to={item.to}
+              activeProps={{ className: "text-ink font-semibold" }}
               className="text-sm text-ink-soft transition-colors hover:text-ink"
             >
               {item.label}
@@ -67,6 +71,70 @@ export function Header() {
               </button>
             </>
           )}
+
+          {/* Mobile Menu Trigger */}
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background text-ink hover:bg-muted md:hidden">
+                <Menu className="h-5 w-5" />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[300px] sm:w-[350px]">
+              <SheetHeader className="text-left">
+                <SheetTitle className="font-display text-xl">导航菜单</SheetTitle>
+              </SheetHeader>
+              <nav className="mt-8 flex flex-col gap-6">
+                {nav.map((item) => (
+                  <Link
+                    key={item.label}
+                    to={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    activeProps={{ className: "text-ink font-semibold" }}
+                    className="text-lg text-ink-soft transition-colors hover:text-ink"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </nav>
+              <div className="mt-12 border-t border-border pt-6">
+                {user ? (
+                  <div className="flex flex-col gap-4">
+                    <span className="text-sm text-ink-soft">当前用户：{maskedPhone}</span>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setMobileOpen(false);
+                      }}
+                      className="w-full rounded-full border border-ink/15 bg-background py-3 text-center text-sm font-medium text-ink"
+                    >
+                      退出登录
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => {
+                        open("login");
+                        setMobileOpen(false);
+                      }}
+                      className="w-full rounded-full border border-border bg-background py-3 text-center text-sm font-medium text-ink"
+                    >
+                      登录
+                    </button>
+                    <button
+                      onClick={() => {
+                        open("register");
+                        setMobileOpen(false);
+                      }}
+                      className="w-full rounded-full bg-ink py-3 text-center text-sm font-medium text-background"
+                    >
+                      免费开始刷题
+                    </button>
+                  </div>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>

@@ -1,0 +1,56 @@
+{
+  "collections": [
+    {
+      "collectionId": "users",
+      "description": "存储用户资料、偏好和学习统计数据。",
+      "fields": [
+        { "name": "email", "type": "string" },
+        { "name": "name", "type": "string" },
+        { "name": "avatar", "type": "string" },
+        { "name": "role", "type": "string" },
+        { "name": "targetExam", "type": "string" },
+        { "name": "dailyGoal", "type": "number" },
+        { "name": "streakDays", "type": "number" },
+        { "name": "totalQuestions", "type": "number" },
+        { "name": "totalCorrect", "type": "number" },
+        { "name": "membership", "type": "string" },
+        { "name": "createdAt", "type": "timestamp" },
+        { "name": "updatedAt", "type": "timestamp" }
+      ]
+    },
+    {
+      "collectionId": "questions",
+      "description": "存储题目数据。",
+      "fields": [
+        { "name": "bankId", "type": "string" },
+        { "name": "type", "type": "string" },
+        { "name": "category", "type": "string" },
+        { "name": "difficulty", "type": "number" },
+        { "name": "content", "type": "map" },
+        { "name": "explanation", "type": "map" },
+        { "name": "stats", "type": "map" },
+        { "name": "createdAt", "type": "timestamp" }
+      ]
+    },
+    {
+      "collectionId": "favorites",
+      "description": "用户收藏的题目。",
+      "fields": [
+        { "name": "userId", "type": "string" },
+        { "name": "questionId", "type": "string" },
+        { "name": "createdAt", "type": "timestamp" }
+      ]
+    },
+    {
+      "collectionId": "userProgress",
+      "description": "用户练习记录。",
+      "fields": [
+        { "name": "userId", "type": "string" },
+        { "name": "questionId", "type": "string" },
+        { "name": "isCorrect", "type": "boolean" },
+        { "name": "timeSpent", "type": "number" },
+        { "name": "createdAt", "type": "timestamp" }
+      ]
+    }
+  ]
+}
