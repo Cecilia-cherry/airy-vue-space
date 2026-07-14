@@ -1366,59 +1366,6 @@ const PRESETS: Record<string, ReadingMaterial> = {
     referenceAnswer:
       "I would like to describe my noise-canceling headphones, which have become absolutely indispensable in my daily life. I bought them about two years ago before preparing for my final university exams.\n\nI use them practically every single day, especially during my morning commutes on the crowded subway and while working in noisy coffee shops. \n\nMy primary use is to block out ambient environmental noise. With a single flick of a button, all distracting chatters and engine roars are instantly silenced, allowing me to fully immerse myself in my study materials, audio lectures, or relaxing classical music. Additionally, they have a built-in microphone, which makes them incredibly convenient for taking hands-free video calls and attending online seminars.\n\nThey are exceptionally useful because they create a portable, peaceful sanctuary for me wherever I go. In a bustling, modern environment, finding a quiet corner to focus is extremely difficult. These headphones allow me to study and stay productive under any chaotic circumstance. They've not only improved my learning efficiency but also reduced my daily stress levels significantly.",
   },
-
-  // --- GAOKAO ---
-  gaokao_0: {
-    title: "听力专项理解",
-    type: "listening",
-    paragraphs: [
-      {
-        pId: "Audio Info",
-        text: "🔊 Click the player on the left to listen to the dialogue. Answer the questions on the right. This listening test focuses on a conversation between two colleagues planning an eco-friendly weekend camping trip.",
-        translation:
-          "🔊 点击左侧播放器播放听力材料，并在右侧回答问题。本听力考查两位同事讨论周末生态野外露营计划的对话。",
-      },
-    ],
-    audioUrl: "https://actions.google.com/sounds/v1/ambiences/morning_birds.ogg", // standard public placeholder audio
-    vocabulary: {
-      "eco-friendly": {
-        word: "eco-friendly",
-        phonetic: "[ˌiːkəʊˈfrendli]",
-        definition: "adj. 环保的，对生态环境无害的",
-        example: "We should use eco-friendly paper bags instead of plastics.",
-      },
-    },
-    questions: [
-      {
-        id: "gaokao_0_q1",
-        type: "听力理解",
-        stem: "Where are the speakers planning to go this weekend?",
-        options: [
-          { key: "A", text: "To a crowded city theme park" },
-          { key: "B", text: "To a natural mountain lake campsite" },
-          { key: "C", text: "To a local library to study" },
-          { key: "D", text: "To a seafood restaurant" },
-        ],
-        answer: "B",
-        explain:
-          "正确答案 B：对话一开头男士提到 'Let's escape the city and go camping near the mountain lake'，因此是自然山区湖畔宿营。",
-      },
-      {
-        id: "gaokao_0_q2",
-        type: "细节理解",
-        stem: "What eco-friendly tool does the woman recommend?",
-        options: [
-          { key: "A", text: "Solar-powered lanterns and reusable bottles" },
-          { key: "B", text: "Disposable plastic plates and spoons" },
-          { key: "C", text: "A gas-powered portable stove" },
-          { key: "D", text: "A heavy paper map of the area" },
-        ],
-        answer: "A",
-        explain:
-          "正确答案 A：女士在对话中提到 'We must bring solar lanterns to avoid batteries, and reusable flasks instead of plastic'，故A是正确选项。",
-      },
-    ],
-  },
 };
 
 export function getReadingMaterial(

@@ -34,11 +34,6 @@ export const Route = createFileRoute("/question-bank/$bankId")({
     if (!bank) throw notFound();
     return { bank, questions: getQuestions(params.bankId) };
   },
-  clientLoader: ({ params }) => {
-    const bank = getBank(params.bankId);
-    if (!bank) throw notFound();
-    return { bank, questions: getQuestions(params.bankId) };
-  },
   head: ({ loaderData }) => ({
     meta: [
       {
