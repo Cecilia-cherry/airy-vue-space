@@ -134,23 +134,44 @@ function QuestionBankCenter() {
       <Header />
       <main>
         {/* Hero */}
-        <section className="container-hero py-16">
-          <span className="text-xs uppercase tracking-[0.25em] text-primary">
-            Question Bank Center
-          </span>
-          <h1 className="mt-3 font-display text-5xl text-ink md:text-6xl">题库中心</h1>
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-ink-soft">
-            覆盖主流英语考试的题库，按分类快速定位，实时查看学习进度。
-          </p>
+        <section className="relative overflow-hidden">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-40"
+            aria-hidden
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 12% 20%, var(--mint) 0%, transparent 42%), radial-gradient(circle at 88% 10%, var(--sky) 0%, transparent 46%), radial-gradient(circle at 60% 90%, var(--butter) 0%, transparent 50%)",
+            }}
+          />
+          <div className="container-hero relative py-20">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-3.5 py-1 text-[11px] uppercase tracking-[0.28em] text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              Question Bank Center
+            </span>
+            <h1 className="mt-5 font-display text-5xl text-ink md:text-6xl">题库中心</h1>
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-ink-soft">
+              覆盖高考、中考、考研、托福、雅思的历年真题库，按考试与年份分类整理，随时接续进度。
+            </p>
+          </div>
         </section>
 
         {/* Stats */}
-        <section className="border-y border-border bg-card/40">
-          <div className="container-hero grid grid-cols-4 gap-6 py-10">
-            <StatCard label="题库数量" value={`${stats.count}`} suffix="套" />
-            <StatCard label="题目总数" value={stats.total.toLocaleString()} suffix="题" />
-            <StatCard label="已完成" value={stats.finished.toLocaleString()} suffix="题" />
-            <StatCard label="整体进度" value={`${stats.progress}%`} suffix="" />
+        <section className="relative">
+          <div className="container-hero -mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <StatCard label="题库数量" value={`${stats.count}`} suffix="套" tint="mint" />
+            <StatCard
+              label="题目总数"
+              value={stats.total.toLocaleString()}
+              suffix="题"
+              tint="sky"
+            />
+            <StatCard
+              label="已完成"
+              value={stats.finished.toLocaleString()}
+              suffix="题"
+              tint="butter"
+            />
+            <StatCard label="整体进度" value={`${stats.progress}%`} suffix="" tint="blush" />
           </div>
         </section>
 
