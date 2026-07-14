@@ -35,6 +35,7 @@ export function Header() {
             <Link
               key={item.label}
               to={item.to}
+              preload="intent"
               activeProps={{ className: "text-ink font-semibold" }}
               className="text-sm text-ink-soft transition-colors hover:text-ink"
             >
