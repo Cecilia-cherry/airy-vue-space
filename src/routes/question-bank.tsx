@@ -491,11 +491,26 @@ function QuestionBankCenter() {
   );
 }
 
-function StatCard({ label, value, suffix }: { label: string; value: string; suffix: string }) {
+function StatCard({
+  label,
+  value,
+  suffix,
+  tint = "mint",
+}: {
+  label: string;
+  value: string;
+  suffix: string;
+  tint?: "mint" | "sky" | "butter" | "blush";
+}) {
   return (
-    <div className="rounded-2xl border border-border bg-background p-6">
-      <p className="text-xs uppercase tracking-widest text-ink-soft">{label}</p>
-      <p className="mt-3 font-display text-3xl text-ink">
+    <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-background/90 p-6 shadow-soft backdrop-blur-sm">
+      <div
+        className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-70"
+        aria-hidden
+        style={{ background: `var(--${tint})` }}
+      />
+      <p className="relative text-[11px] uppercase tracking-[0.22em] text-ink-soft">{label}</p>
+      <p className="relative mt-3 font-display text-3xl text-ink">
         {value}
         <span className="ml-1 text-sm text-ink-soft">{suffix}</span>
       </p>
@@ -515,13 +530,14 @@ function FilterChip({
   return (
     <button
       onClick={onClick}
-      className={`whitespace-nowrap rounded-full border px-5 py-2 text-sm transition-colors ${
+      className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm transition-all duration-200 ${
         active
-          ? "border-ink bg-ink text-background"
-          : "border-border bg-card text-ink-soft hover:text-ink"
+          ? "border-primary/30 bg-primary/10 text-primary shadow-sm"
+          : "border-border/70 bg-card/60 text-ink-soft hover:border-primary/25 hover:bg-primary/5 hover:text-ink"
       }`}
     >
       {children}
     </button>
   );
 }
+
