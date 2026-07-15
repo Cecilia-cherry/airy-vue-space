@@ -1383,18 +1383,20 @@ export function getReadingMaterial(
   }[],
   bankId: string,
 ): ReadingMaterial {
+  // Prefer year-specific real 真题 excerpts if available
+  const yearKey = `${category}_${year}_${sectionIndex}`;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { REAL_EXAM_PRESETS } = require("./real-exam-materials") as typeof import("./real-exam-materials");
+  const yearHit = REAL_EXAM_PRESETS[yearKey];
   const key = `${category}_${sectionIndex}`;
-  if (PRESETS[key]) {
-    const base = PRESETS[key];
+  const base = yearHit ?? PRESETS[key];
+  if (base) {
     const displayYear = year.replace("年真题", "").trim();
     let title = base.title;
     if (displayYear && !title.includes(displayYear)) {
-      title = `${displayYear}年 · ${title}`;
+      title = `${displayYear} · ${title}`;
     }
-    return {
-      ...base,
-      title,
-    };
+    return { ...base, title };
   }
 
   // Fallback Procedural Generator: convert standard single bank question into a reading layout
