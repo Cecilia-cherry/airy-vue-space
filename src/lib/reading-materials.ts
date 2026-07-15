@@ -1,3 +1,5 @@
+import { REAL_EXAM_PRESETS } from "./real-exam-materials";
+
 export interface ReadingWord {
   word: string;
   phonetic?: string;
@@ -1385,8 +1387,6 @@ export function getReadingMaterial(
 ): ReadingMaterial {
   // Prefer year-specific real 真题 excerpts if available
   const yearKey = `${category}_${year}_${sectionIndex}`;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { REAL_EXAM_PRESETS } = require("./real-exam-materials") as typeof import("./real-exam-materials");
   const yearHit = REAL_EXAM_PRESETS[yearKey];
   const key = `${category}_${sectionIndex}`;
   const base = yearHit ?? PRESETS[key];
