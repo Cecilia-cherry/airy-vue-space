@@ -967,7 +967,8 @@ function BankDetail() {
                     )}
 
                     {/* Difficult Sentences Expansion Panel (长难句分析) */}
-                    {sectionMaterial.difficultSentences &&
+                    {activeMode === "analyze" &&
+                      sectionMaterial.difficultSentences &&
                       sectionMaterial.difficultSentences.length > 0 && (
                         <div className="border-t border-border pt-6 mt-8 space-y-4">
                           <h4 className="text-sm font-semibold text-ink flex items-center gap-2">
