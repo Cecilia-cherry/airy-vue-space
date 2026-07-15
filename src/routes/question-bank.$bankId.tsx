@@ -1140,16 +1140,35 @@ function BankDetail() {
                               })}
                             </div>
 
-                            {/* Correct Answer and AI Explanations if Answered */}
-                            {isAnswered && (
+                            {/* Explanation is available ONLY in 精读模式, and stays collapsed until the user opens it */}
+                            {isAnswered && activeMode === "analyze" && (
                               <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-2 animate-in fade-in duration-300">
-                                <div className="flex items-center gap-1 text-xs font-bold text-primary">
-                                  <Sparkles className="h-3.5 w-3.5" />
-                                  <span>官方深度解析与思路指引</span>
-                                </div>
-                                <p className="text-xs leading-relaxed text-ink-soft">{q.explain}</p>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExplanationOpen((prev) => ({
+                                      ...prev,
+                                      [qId]: !prev[qId],
+                                    }))
+                                  }
+                                  className="flex w-full items-center justify-between gap-2 text-xs font-bold text-primary cursor-pointer"
+                                >
+                                  <span className="flex items-center gap-1">
+                                    <Sparkles className="h-3.5 w-3.5" />
+                                    <span>官方深度解析与思路指引</span>
+                                  </span>
+                                  <span className="text-[11px] font-medium text-primary/80">
+                                    {explanationOpen[qId] ? "收起" : "点击展开"}
+                                  </span>
+                                </button>
+                                {explanationOpen[qId] && (
+                                  <p className="text-xs leading-relaxed text-ink-soft pt-2 border-t border-primary/10 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    {q.explain}
+                                  </p>
+                                )}
                               </div>
                             )}
+
                           </div>
 
                           {/* Navigation Controls Board */}
