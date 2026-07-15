@@ -848,7 +848,7 @@ function BankDetail() {
                 <div className="lg:col-span-3 space-y-6">
                   {/* Listening Player (if type is listening) */}
                   {sectionMaterial.type === "listening" && (
-                    <div className="rounded-2xl border border-border bg-gradient-to-r from-indigo-500/5 to-purple-500/5 p-5">
+                    <div className="rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/5 via-mint/25 to-sky/20 p-5">
                       <div className="flex items-center gap-4">
                         <div
                           className={`flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-md ${
