@@ -1107,9 +1107,12 @@ function BankDetail() {
                                       saveProgress(next);
                                       if (isRight) {
                                         toast.success("回答正确！太棒了 🎉");
-                                      } else {
+                                      } else if (activeMode === "analyze") {
                                         toast.error(`回答错误，正确答案是 ${q.answer}`);
+                                      } else {
+                                        toast.error("回答错误，切换到精读模式查看详细解析");
                                       }
+
                                     }}
                                     disabled={isAnswered}
                                     className={`flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left text-xs transition-all cursor-pointer ${
