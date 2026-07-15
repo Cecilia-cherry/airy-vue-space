@@ -1089,13 +1089,22 @@ function BankDetail() {
                               {q.options.map((opt) => {
                                 const isPicked = picked === opt.key;
                                 const isRight = q.answer === opt.key;
+                                // In 做题模式 we never reveal which option is the correct answer —
+                                // only the user's own pick is marked right/wrong.
                                 const state = !isAnswered
                                   ? "idle"
-                                  : isRight
-                                    ? "right"
-                                    : isPicked
-                                      ? "wrong"
-                                      : "muted";
+                                  : activeMode === "answer"
+                                    ? isPicked
+                                      ? isRight
+                                        ? "right"
+                                        : "wrong"
+                                      : "muted"
+                                    : isRight
+                                      ? "right"
+                                      : isPicked
+                                        ? "wrong"
+                                        : "muted";
+
 
                                 return (
                                   <button
