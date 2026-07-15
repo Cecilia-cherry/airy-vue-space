@@ -119,7 +119,7 @@ const BANK_SECTIONS: Record<string, string[]> = {
 const getSectionIcon = (sectionName: string) => {
   const lowercase = sectionName.toLowerCase();
   if (lowercase.includes("阅读") || lowercase.includes("七选五")) {
-    return <BookOpen className="h-4.5 w-4.5 text-sky-500" />;
+    return <BookOpen className="h-4.5 w-4.5 text-primary" />;
   }
   if (
     lowercase.includes("作文") ||
@@ -127,19 +127,20 @@ const getSectionIcon = (sectionName: string) => {
     lowercase.includes("表达") ||
     lowercase.includes("写")
   ) {
-    return <PenTool className="h-4.5 w-4.5 text-emerald-500" />;
+    return <PenTool className="h-4.5 w-4.5 text-primary" />;
   }
   if (lowercase.includes("听力")) {
-    return <Volume2 className="h-4.5 w-4.5 text-indigo-500" />;
+    return <Volume2 className="h-4.5 w-4.5 text-primary/80" />;
   }
   if (lowercase.includes("口语") || lowercase.includes("面试") || lowercase.includes("模拟")) {
-    return <MessageSquare className="h-4.5 w-4.5 text-violet-500" />;
+    return <MessageSquare className="h-4.5 w-4.5 text-primary/80" />;
   }
   if (lowercase.includes("翻译")) {
-    return <Languages className="h-4.5 w-4.5 text-amber-500" />;
+    return <Languages className="h-4.5 w-4.5 text-primary/80" />;
   }
   return <HelpCircle className="h-4.5 w-4.5 text-primary/70" />;
 };
+
 
 // Deterministically map standard year-sections to the 10 questions in the raw database
 const getQuestionForSection = (
