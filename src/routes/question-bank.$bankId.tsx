@@ -234,7 +234,9 @@ function BankDetail() {
     setActiveQuestionIndex(0);
     setIsPlayingAudio(false);
     setAudioProgress(15);
+    setExplanationOpen({});
   }, [selectedSectionIndex]);
+
 
   // Audio progress tick simulation
   useEffect(() => {
