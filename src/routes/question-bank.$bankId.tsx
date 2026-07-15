@@ -119,7 +119,7 @@ const BANK_SECTIONS: Record<string, string[]> = {
 const getSectionIcon = (sectionName: string) => {
   const lowercase = sectionName.toLowerCase();
   if (lowercase.includes("阅读") || lowercase.includes("七选五")) {
-    return <BookOpen className="h-4.5 w-4.5 text-sky-500" />;
+    return <BookOpen className="h-4.5 w-4.5 text-primary" />;
   }
   if (
     lowercase.includes("作文") ||
@@ -127,19 +127,20 @@ const getSectionIcon = (sectionName: string) => {
     lowercase.includes("表达") ||
     lowercase.includes("写")
   ) {
-    return <PenTool className="h-4.5 w-4.5 text-emerald-500" />;
+    return <PenTool className="h-4.5 w-4.5 text-primary" />;
   }
   if (lowercase.includes("听力")) {
-    return <Volume2 className="h-4.5 w-4.5 text-indigo-500" />;
+    return <Volume2 className="h-4.5 w-4.5 text-primary/80" />;
   }
   if (lowercase.includes("口语") || lowercase.includes("面试") || lowercase.includes("模拟")) {
-    return <MessageSquare className="h-4.5 w-4.5 text-violet-500" />;
+    return <MessageSquare className="h-4.5 w-4.5 text-primary/80" />;
   }
   if (lowercase.includes("翻译")) {
-    return <Languages className="h-4.5 w-4.5 text-amber-500" />;
+    return <Languages className="h-4.5 w-4.5 text-primary/80" />;
   }
   return <HelpCircle className="h-4.5 w-4.5 text-primary/70" />;
 };
+
 
 // Deterministically map standard year-sections to the 10 questions in the raw database
 const getQuestionForSection = (
@@ -219,6 +220,7 @@ function BankDetail() {
   >({});
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
   const [showTranslationBanner, setShowTranslationBanner] = useState<boolean>(true);
+  const [explanationOpen, setExplanationOpen] = useState<Record<string, boolean>>({});
 
   // Simulated audio player states
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
@@ -233,7 +235,9 @@ function BankDetail() {
     setActiveQuestionIndex(0);
     setIsPlayingAudio(false);
     setAudioProgress(15);
+    setExplanationOpen({});
   }, [selectedSectionIndex]);
+
 
   // Audio progress tick simulation
   useEffect(() => {
@@ -845,7 +849,7 @@ function BankDetail() {
                 <div className="lg:col-span-3 space-y-6">
                   {/* Listening Player (if type is listening) */}
                   {sectionMaterial.type === "listening" && (
-                    <div className="rounded-2xl border border-border bg-gradient-to-r from-indigo-500/5 to-purple-500/5 p-5">
+                    <div className="rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/5 via-mint/25 to-sky/20 p-5">
                       <div className="flex items-center gap-4">
                         <div
                           className={`flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-md ${
@@ -964,7 +968,8 @@ function BankDetail() {
                     )}
 
                     {/* Difficult Sentences Expansion Panel (长难句分析) */}
-                    {sectionMaterial.difficultSentences &&
+                    {activeMode === "analyze" &&
+                      sectionMaterial.difficultSentences &&
                       sectionMaterial.difficultSentences.length > 0 && (
                         <div className="border-t border-border pt-6 mt-8 space-y-4">
                           <h4 className="text-sm font-semibold text-ink flex items-center gap-2">
@@ -1085,13 +1090,22 @@ function BankDetail() {
                               {q.options.map((opt) => {
                                 const isPicked = picked === opt.key;
                                 const isRight = q.answer === opt.key;
+                                // In 做题模式 we never reveal which option is the correct answer —
+                                // only the user's own pick is marked right/wrong.
                                 const state = !isAnswered
                                   ? "idle"
-                                  : isRight
-                                    ? "right"
-                                    : isPicked
-                                      ? "wrong"
-                                      : "muted";
+                                  : activeMode === "answer"
+                                    ? isPicked
+                                      ? isRight
+                                        ? "right"
+                                        : "wrong"
+                                      : "muted"
+                                    : isRight
+                                      ? "right"
+                                      : isPicked
+                                        ? "wrong"
+                                        : "muted";
+
 
                                 return (
                                   <button
@@ -1103,9 +1117,12 @@ function BankDetail() {
                                       saveProgress(next);
                                       if (isRight) {
                                         toast.success("回答正确！太棒了 🎉");
-                                      } else {
+                                      } else if (activeMode === "analyze") {
                                         toast.error(`回答错误，正确答案是 ${q.answer}`);
+                                      } else {
+                                        toast.error("回答错误，切换到精读模式查看详细解析");
                                       }
+
                                     }}
                                     disabled={isAnswered}
                                     className={`flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left text-xs transition-all cursor-pointer ${
@@ -1137,16 +1154,35 @@ function BankDetail() {
                               })}
                             </div>
 
-                            {/* Correct Answer and AI Explanations if Answered */}
-                            {isAnswered && (
+                            {/* Explanation is available ONLY in 精读模式, and stays collapsed until the user opens it */}
+                            {isAnswered && activeMode === "analyze" && (
                               <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-2 animate-in fade-in duration-300">
-                                <div className="flex items-center gap-1 text-xs font-bold text-primary">
-                                  <Sparkles className="h-3.5 w-3.5" />
-                                  <span>官方深度解析与思路指引</span>
-                                </div>
-                                <p className="text-xs leading-relaxed text-ink-soft">{q.explain}</p>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExplanationOpen((prev) => ({
+                                      ...prev,
+                                      [qId]: !prev[qId],
+                                    }))
+                                  }
+                                  className="flex w-full items-center justify-between gap-2 text-xs font-bold text-primary cursor-pointer"
+                                >
+                                  <span className="flex items-center gap-1">
+                                    <Sparkles className="h-3.5 w-3.5" />
+                                    <span>官方深度解析与思路指引</span>
+                                  </span>
+                                  <span className="text-[11px] font-medium text-primary/80">
+                                    {explanationOpen[qId] ? "收起" : "点击展开"}
+                                  </span>
+                                </button>
+                                {explanationOpen[qId] && (
+                                  <p className="text-xs leading-relaxed text-ink-soft pt-2 border-t border-primary/10 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    {q.explain}
+                                  </p>
+                                )}
                               </div>
                             )}
+
                           </div>
 
                           {/* Navigation Controls Board */}
