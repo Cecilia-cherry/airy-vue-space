@@ -228,6 +228,7 @@ function BankDetail() {
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
   const [showTranslationBanner, setShowTranslationBanner] = useState<boolean>(true);
   const [explanationOpen, setExplanationOpen] = useState<Record<string, boolean>>({});
+  const [pendingAnswers, setPendingAnswers] = useState<Record<string, string>>({});
 
   // Simulated audio player states
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
