@@ -1070,8 +1070,10 @@ function BankDetail() {
                       );
                       const q = sectionMaterial.questions[qIndex];
                       const qId = `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}_q_${qIndex}`;
-                      const picked = revealed[qId];
-                      const isAnswered = picked !== undefined;
+                      const committed = revealed[qId];
+                      const isAnswered = committed !== undefined;
+                      const pending = pendingAnswers[qId];
+                      const picked = isAnswered ? committed : pending;
 
                       return (
                         <div className="space-y-6">
@@ -1113,47 +1115,36 @@ function BankDetail() {
                               {q.options.map((opt) => {
                                 const isPicked = picked === opt.key;
                                 const isRight = q.answer === opt.key;
-                                // In 做题模式 we never reveal which option is the correct answer —
-                                // only the user's own pick is marked right/wrong.
-                                const state = !isAnswered
-                                  ? "idle"
-                                  : activeMode === "answer"
-                                    ? isPicked
-                                      ? isRight
-                                        ? "right"
-                                        : "wrong"
-                                      : "muted"
-                                    : isRight
-                                      ? "right"
-                                      : isPicked
-                                        ? "wrong"
-                                        : "muted";
+                                // Before submit: only highlight picked option (neutral primary tint,
+                                // never reveal right/wrong). After submit: reveal grading based on mode.
+                                let state: "idle" | "pending" | "right" | "wrong" | "muted" =
+                                  "idle";
+                                if (!isAnswered) {
+                                  state = isPicked ? "pending" : "idle";
+                                } else if (activeMode === "answer") {
+                                  state = isPicked ? (isRight ? "right" : "wrong") : "muted";
+                                } else {
+                                  state = isRight ? "right" : isPicked ? "wrong" : "muted";
+                                }
 
                                 return (
                                   <button
                                     key={opt.key}
                                     onClick={() => {
-                                      // Save response
-                                      const next = { ...revealed, [qId]: opt.key };
-                                      setRevealed(next);
-                                      saveProgress(next);
-                                      if (isRight) {
-                                        toast.success("回答正确！太棒了 🎉");
-                                      } else if (activeMode === "analyze") {
-                                        toast.error(`回答错误，正确答案是 ${q.answer}`);
-                                      } else {
-                                        toast.error("回答错误，切换到精读模式查看详细解析");
-                                      }
+                                      if (isAnswered) return;
+                                      setPendingAnswers((prev) => ({ ...prev, [qId]: opt.key }));
                                     }}
                                     disabled={isAnswered}
                                     className={`flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left text-xs transition-all cursor-pointer ${
                                       state === "right"
-                                        ? "border-emerald-500 bg-emerald-50/70 text-ink ring-2 ring-emerald-500/10"
+                                        ? "border-emerald-500/70 bg-emerald-50/70 text-ink ring-2 ring-emerald-500/10"
                                         : state === "wrong"
-                                          ? "border-rose-500 bg-rose-50/70 text-ink ring-2 ring-rose-500/10"
-                                          : state === "muted"
-                                            ? "border-border/40 bg-muted/20 text-ink-soft opacity-60"
-                                            : "border-border bg-background text-ink hover:border-primary/60 hover:bg-muted/10 hover:shadow-xs"
+                                          ? "border-rose-500/70 bg-rose-50/70 text-ink ring-2 ring-rose-500/10"
+                                          : state === "pending"
+                                            ? "border-primary/60 bg-primary/5 text-ink ring-2 ring-primary/10"
+                                            : state === "muted"
+                                              ? "border-border/40 bg-muted/20 text-ink-soft opacity-60"
+                                              : "border-border bg-background text-ink hover:border-primary/40 hover:bg-primary/5"
                                     }`}
                                   >
                                     <span
@@ -1162,7 +1153,9 @@ function BankDetail() {
                                           ? "bg-emerald-500 border-emerald-500 text-white"
                                           : state === "wrong"
                                             ? "bg-rose-500 border-rose-500 text-white"
-                                            : "border-border bg-card text-ink-soft"
+                                            : state === "pending"
+                                              ? "bg-primary border-primary text-white"
+                                              : "border-border bg-card text-ink-soft"
                                       }`}
                                     >
                                       {opt.key}
@@ -1233,25 +1226,51 @@ function BankDetail() {
                             </div>
 
                             {/* Submit / Next Button */}
-                            <button
-                              onClick={() => {
-                                if (qIndex < sectionMaterial.questions.length - 1) {
-                                  setActiveQuestionIndex(qIndex + 1);
-                                } else {
-                                  toast.success("✨ 恭喜你！已完成当前真题小节的所有试题！");
-                                  setSelectedSectionIndex(null);
-                                }
-                              }}
-                              className="rounded-xl bg-ink text-background px-4 py-2 text-xs font-semibold hover:bg-ink/90 transition shadow-sm cursor-pointer whitespace-nowrap self-stretch sm:self-auto text-center"
-                            >
-                              {qIndex < sectionMaterial.questions.length - 1
-                                ? "下一题"
-                                : "提交完成"}
-                            </button>
+                            {!isAnswered ? (
+                              <button
+                                onClick={() => {
+                                  if (!pending) {
+                                    toast("请先选择一个选项再提交");
+                                    return;
+                                  }
+                                  const next = { ...revealed, [qId]: pending };
+                                  setRevealed(next);
+                                  saveProgress(next);
+                                  if (q.answer === pending) {
+                                    toast.success("回答正确！太棒了 🎉");
+                                  } else if (activeMode === "analyze") {
+                                    toast.error(`回答错误，正确答案是 ${q.answer}`);
+                                  } else {
+                                    toast.error("回答错误，切换到精读模式查看详细解析");
+                                  }
+                                }}
+                                className="rounded-xl bg-primary text-white px-4 py-2 text-xs font-semibold hover:bg-primary/90 transition shadow-sm cursor-pointer whitespace-nowrap self-stretch sm:self-auto text-center disabled:opacity-50"
+                                disabled={!pending}
+                              >
+                                提交答案
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  if (qIndex < sectionMaterial.questions.length - 1) {
+                                    setActiveQuestionIndex(qIndex + 1);
+                                  } else {
+                                    toast.success("✨ 恭喜你！已完成当前真题小节的所有试题！");
+                                    setSelectedSectionIndex(null);
+                                  }
+                                }}
+                                className="rounded-xl bg-ink text-background px-4 py-2 text-xs font-semibold hover:bg-ink/90 transition shadow-sm cursor-pointer whitespace-nowrap self-stretch sm:self-auto text-center"
+                              >
+                                {qIndex < sectionMaterial.questions.length - 1
+                                  ? "下一题"
+                                  : "提交完成"}
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
                     })()
+
                   ) : (
                     /* If section is Writing / Translation section (no multiple questions) */
                     <div className="rounded-3xl border border-border bg-card p-6 shadow-soft space-y-6">
