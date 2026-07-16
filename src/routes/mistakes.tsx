@@ -480,7 +480,7 @@ function MistakesPage() {
                         {/* Question Metadata Info */}
                         <div className="flex items-center justify-between border-b border-border/40 pb-3">
                           <span className="text-[10px] font-semibold text-primary bg-primary/5 border border-primary/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                            {q.bankName} · {q.type}
+                            {q.bankName} · {q.tag}
                           </span>
 
                           <button
