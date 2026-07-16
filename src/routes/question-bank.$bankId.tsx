@@ -1271,7 +1271,6 @@ function BankDetail() {
                         </div>
                       );
                     })()
-
                   ) : (
                     /* If section is Writing / Translation section (no multiple questions) */
                     <div className="rounded-3xl border border-border bg-card p-6 shadow-soft space-y-6">
@@ -1661,7 +1660,6 @@ function BankDetail() {
           </div>
         </>
       )}
-
 
       <Footer />
     </div>
