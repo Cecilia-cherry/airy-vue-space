@@ -25,8 +25,18 @@ export const REAL_EXAM_PRESETS: Record<string, ReadingMaterial> = {
       },
     ],
     vocabulary: {
-      propelling: { word: "propel", phonetic: "[prəˈpel]", definition: "v. 推进，推动", example: "Wind propels the sailboat forward." },
-      domestication: { word: "domestication", phonetic: "[dəˌmestɪˈkeɪʃn]", definition: "n. 驯化", example: "The domestication of dogs began ages ago." },
+      propelling: {
+        word: "propel",
+        phonetic: "[prəˈpel]",
+        definition: "v. 推进，推动",
+        example: "Wind propels the sailboat forward.",
+      },
+      domestication: {
+        word: "domestication",
+        phonetic: "[dəˌmestɪˈkeɪʃn]",
+        definition: "n. 驯化",
+        example: "The domestication of dogs began ages ago.",
+      },
     },
     questions: [
       {
@@ -64,8 +74,18 @@ export const REAL_EXAM_PRESETS: Record<string, ReadingMaterial> = {
       },
     ],
     vocabulary: {
-      credentials: { word: "credentials", phonetic: "[krəˈdenʃlz]", definition: "n. 资质，证书", example: "She has strong academic credentials." },
-      mobility: { word: "mobility", phonetic: "[məʊˈbɪləti]", definition: "n. 流动性", example: "Education promotes social mobility." },
+      credentials: {
+        word: "credentials",
+        phonetic: "[krəˈdenʃlz]",
+        definition: "n. 资质，证书",
+        example: "She has strong academic credentials.",
+      },
+      mobility: {
+        word: "mobility",
+        phonetic: "[məʊˈbɪləti]",
+        definition: "n. 流动性",
+        example: "Education promotes social mobility.",
+      },
     },
     questions: [
       {
@@ -103,8 +123,18 @@ export const REAL_EXAM_PRESETS: Record<string, ReadingMaterial> = {
       },
     ],
     vocabulary: {
-      lavishly: { word: "lavishly", phonetic: "[ˈlævɪʃli]", definition: "adv. 慷慨地，大手大脚地", example: "They spent lavishly on decor." },
-      indistinguishable: { word: "indistinguishable", phonetic: "[ˌɪndɪˈstɪŋɡwɪʃəbl]", definition: "adj. 无法区分的", example: "The copy is indistinguishable from the original." },
+      lavishly: {
+        word: "lavishly",
+        phonetic: "[ˈlævɪʃli]",
+        definition: "adv. 慷慨地，大手大脚地",
+        example: "They spent lavishly on decor.",
+      },
+      indistinguishable: {
+        word: "indistinguishable",
+        phonetic: "[ˌɪndɪˈstɪŋɡwɪʃəbl]",
+        definition: "adj. 无法区分的",
+        example: "The copy is indistinguishable from the original.",
+      },
     },
     questions: [
       {
@@ -136,14 +166,24 @@ export const REAL_EXAM_PRESETS: Record<string, ReadingMaterial> = {
       },
       {
         pId: "P2",
-        text: "For 17-year-old Emma Chen, the experience was life-changing. \"Before this summer, I thought conservation meant just recycling at home,\" she said. \"Now I understand it takes patience, teamwork and a deep respect for nature.\"",
+        text: 'For 17-year-old Emma Chen, the experience was life-changing. "Before this summer, I thought conservation meant just recycling at home," she said. "Now I understand it takes patience, teamwork and a deep respect for nature."',
         translation:
-          "对17岁的Emma Chen而言，这段经历改变了她的人生。\"这个夏天之前，我以为环保就是在家做好垃圾分类。\"她说，\"现在我明白，环保需要耐心、团队合作以及对自然的深切敬意。\"",
+          '对17岁的Emma Chen而言，这段经历改变了她的人生。"这个夏天之前，我以为环保就是在家做好垃圾分类。"她说，"现在我明白，环保需要耐心、团队合作以及对自然的深切敬意。"',
       },
     ],
     vocabulary: {
-      fragile: { word: "fragile", phonetic: "[ˈfrædʒaɪl]", definition: "adj. 脆弱的", example: "The ecosystem is fragile." },
-      conservation: { word: "conservation", phonetic: "[ˌkɒnsəˈveɪʃn]", definition: "n. 保护，保育", example: "Wildlife conservation matters." },
+      fragile: {
+        word: "fragile",
+        phonetic: "[ˈfrædʒaɪl]",
+        definition: "adj. 脆弱的",
+        example: "The ecosystem is fragile.",
+      },
+      conservation: {
+        word: "conservation",
+        phonetic: "[ˌkɒnsəˈveɪʃn]",
+        definition: "n. 保护，保育",
+        example: "Wildlife conservation matters.",
+      },
     },
     questions: [
       {
@@ -175,14 +215,24 @@ export const REAL_EXAM_PRESETS: Record<string, ReadingMaterial> = {
       },
       {
         pId: "P2",
-        text: "Within three months, Marco had built his first mobile app — a tool that helps elderly neighbors schedule medication reminders. \"I never thought I could create something useful for real people,\" he said. \"The club showed me that learning is much more fun when it solves a problem.\"",
+        text: 'Within three months, Marco had built his first mobile app — a tool that helps elderly neighbors schedule medication reminders. "I never thought I could create something useful for real people," he said. "The club showed me that learning is much more fun when it solves a problem."',
         translation:
-          "三个月内，Marco便开发出了自己的第一款手机应用——一个帮助老年邻居设置服药提醒的工具。\"我从没想过自己能为真实的人创造有用的东西，\"他说，\"俱乐部让我明白，当学习能解决实际问题时，它会变得有趣得多。\"",
+          '三个月内，Marco便开发出了自己的第一款手机应用——一个帮助老年邻居设置服药提醒的工具。"我从没想过自己能为真实的人创造有用的东西，"他说，"俱乐部让我明白，当学习能解决实际问题时，它会变得有趣得多。"',
       },
     ],
     vocabulary: {
-      passion: { word: "passion", phonetic: "[ˈpæʃn]", definition: "n. 热爱，激情", example: "She has a passion for music." },
-      medication: { word: "medication", phonetic: "[ˌmedɪˈkeɪʃn]", definition: "n. 药物", example: "Take the medication after meals." },
+      passion: {
+        word: "passion",
+        phonetic: "[ˈpæʃn]",
+        definition: "n. 热爱，激情",
+        example: "She has a passion for music.",
+      },
+      medication: {
+        word: "medication",
+        phonetic: "[ˌmedɪˈkeɪʃn]",
+        definition: "n. 药物",
+        example: "Take the medication after meals.",
+      },
     },
     questions: [
       {
@@ -196,7 +246,8 @@ export const REAL_EXAM_PRESETS: Record<string, ReadingMaterial> = {
           { key: "D", text: "A homework helper tool." },
         ],
         answer: "C",
-        explain: "P2 明确说 tool that helps elderly neighbors schedule medication reminders，选 C。",
+        explain:
+          "P2 明确说 tool that helps elderly neighbors schedule medication reminders，选 C。",
       },
     ],
   },
@@ -220,8 +271,18 @@ export const REAL_EXAM_PRESETS: Record<string, ReadingMaterial> = {
       },
     ],
     vocabulary: {
-      reshaping: { word: "reshape", phonetic: "[ˌriːˈʃeɪp]", definition: "v. 重塑", example: "Technology is reshaping education." },
-      belonging: { word: "belonging", phonetic: "[bɪˈlɒŋɪŋ]", definition: "n. 归属感", example: "The club gives him a sense of belonging." },
+      reshaping: {
+        word: "reshape",
+        phonetic: "[ˌriːˈʃeɪp]",
+        definition: "v. 重塑",
+        example: "Technology is reshaping education.",
+      },
+      belonging: {
+        word: "belonging",
+        phonetic: "[bɪˈlɒŋɪŋ]",
+        definition: "n. 归属感",
+        example: "The club gives him a sense of belonging.",
+      },
     },
     questions: [
       {

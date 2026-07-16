@@ -1386,8 +1386,9 @@ export function getReadingMaterial(
   bankId: string,
 ): ReadingMaterial {
   // Prefer year-specific real 真题 excerpts if available
-  const yearKey = `${category}_${year}_${sectionIndex}`;
-  const yearHit = REAL_EXAM_PRESETS[yearKey];
+  const bankYearKey = `${bankId}_${year}_${sectionIndex}`;
+  const categoryYearKey = `${category}_${year}_${sectionIndex}`;
+  const yearHit = REAL_EXAM_PRESETS[bankYearKey] ?? REAL_EXAM_PRESETS[categoryYearKey];
   const key = `${category}_${sectionIndex}`;
   const base = yearHit ?? PRESETS[key];
   if (base) {

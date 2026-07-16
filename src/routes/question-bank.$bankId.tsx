@@ -4,6 +4,7 @@ import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { getBank, getQuestions, loadFavorites, saveFavorites } from "@/lib/question-banks";
 import { getReadingMaterial, type ReadingWord } from "@/lib/reading-materials";
+import { lookupWord, loadFavoriteWords, toggleWordFavorite } from "@/lib/dictionary";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -141,7 +142,6 @@ const getSectionIcon = (sectionName: string) => {
   return <HelpCircle className="h-4.5 w-4.5 text-primary/70" />;
 };
 
-
 // Deterministically map standard year-sections to the 10 questions in the raw database
 const getQuestionForSection = (
   year: string,
@@ -201,6 +201,7 @@ function BankDetail() {
   // Favorites & Answered States
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [favoriteWords, setFavoriteWords] = useState<string[]>([]);
 
   // Writing essay States
   const [writingInputs, setWritingInputs] = useState<Record<string, string>>({});
@@ -215,6 +216,12 @@ function BankDetail() {
   // Split-screen learning workstation states
   const [activeMode, setActiveMode] = useState<"analyze" | "answer">("answer");
   const [selectedLookupWord, setSelectedLookupWord] = useState<ReadingWord | null>(null);
+  const [lookupCoords, setLookupCoords] = useState<{
+    top: number;
+    left: number;
+    height: number;
+    width: number;
+  } | null>(null);
   const [paragraphTranslationsRevealed, setParagraphTranslationsRevealed] = useState<
     Record<string, boolean>
   >({});
@@ -231,13 +238,13 @@ function BankDetail() {
   useEffect(() => {
     setActiveMode("answer");
     setSelectedLookupWord(null);
+    setLookupCoords(null);
     setParagraphTranslationsRevealed({});
     setActiveQuestionIndex(0);
     setIsPlayingAudio(false);
     setAudioProgress(15);
     setExplanationOpen({});
   }, [selectedSectionIndex]);
-
 
   // Audio progress tick simulation
   useEffect(() => {
@@ -259,6 +266,7 @@ function BankDetail() {
   // Load persistence states on mount
   useEffect(() => {
     setFavorites(loadFavorites());
+    setFavoriteWords(loadFavoriteWords().map((w) => w.word.toLowerCase()));
 
     const savedRevealed = localStorage.getItem(`revealed_${bank.id}`);
     if (savedRevealed) {
@@ -415,6 +423,41 @@ function BankDetail() {
     });
   };
 
+  const handleToggleWordFav = (wordObj: ReadingWord) => {
+    const added = toggleWordFavorite(wordObj);
+    setFavoriteWords(loadFavoriteWords().map((w) => w.word.toLowerCase()));
+    if (added) {
+      toast.success(`生词 "${wordObj.word}" 已成功收藏到错题生词本！`);
+    } else {
+      toast(`生词 "${wordObj.word}" 已移出生词本。`);
+    }
+  };
+
+  const handleWordClick = (wordObj: ReadingWord, element: HTMLElement) => {
+    setSelectedLookupWord(wordObj);
+    const rect = element.getBoundingClientRect();
+    const scrollY = window.scrollY;
+    const scrollX = window.scrollX;
+    setLookupCoords({
+      top: rect.top + scrollY,
+      left: rect.left + scrollX,
+      height: rect.height,
+      width: rect.width,
+    });
+  };
+
+  const handlePronounce = (text: string) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      toast.error("您的浏览器暂不支持语音合成朗读");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.rate = 0.85;
+    window.speechSynthesis.speak(utterance);
+  };
+
   const handleChoose = (qid: string, key: string) => {
     const next = { ...revealed, [qid]: key };
     setRevealed(next);
@@ -497,7 +540,7 @@ function BankDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
       <Header />
       <main className="container-hero py-12">
         {/* Navigation & Return Button */}
@@ -741,12 +784,7 @@ function BankDetail() {
                   <button
                     onClick={() => {
                       setActiveMode("analyze");
-                      // Automatically reveal all translations in Analyze mode
-                      const autoReveal: Record<string, boolean> = {};
-                      sectionMaterial.paragraphs.forEach((p) => {
-                        autoReveal[p.pId] = true;
-                      });
-                      setParagraphTranslationsRevealed(autoReveal);
+                      setParagraphTranslationsRevealed({});
                     }}
                     className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition cursor-pointer ${
                       activeMode === "analyze"
@@ -831,7 +869,8 @@ function BankDetail() {
                     <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
                     <span>
                       <strong>学霸功能：</strong>
-                      手写模式下支持点击文章里带有虚线下划线的学术单词进行即时查词，查看详细释义与音标。
+                      精读模式下支持点击文章中的<strong>任意单词</strong>
+                      进行即时查词与音标释义查询，点击星号即可一键收藏至错题生词本！
                     </span>
                   </div>
                   <button
@@ -935,29 +974,46 @@ function BankDetail() {
                             <AnnotatedText
                               text={p.text}
                               vocabulary={sectionMaterial.vocabulary}
-                              onWordClick={(wordObj) => setSelectedLookupWord(wordObj)}
+                              onWordClick={(wordObj, el) => handleWordClick(wordObj, el)}
+                              activeMode={activeMode}
                             />
                           </p>
 
                           {/* Translation block */}
-                          {paragraphTranslationsRevealed[p.pId] ? (
-                            <div className="rounded-2xl bg-muted/40 border border-border/40 p-4.5 text-sm text-ink-soft leading-relaxed transition-all duration-300 animate-in fade-in slide-in-from-top-1">
-                              {p.translation}
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() =>
-                                setParagraphTranslationsRevealed((prev) => ({
-                                  ...prev,
-                                  [p.pId]: true,
-                                }))
-                              }
-                              className="text-xs text-primary font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer transition opacity-0 group-hover:opacity-100 focus:opacity-100"
-                            >
-                              <Languages className="h-3 w-3" />
-                              <span>点击查看翻译</span>
-                            </button>
-                          )}
+                          {activeMode === "analyze" &&
+                            p.translation &&
+                            (paragraphTranslationsRevealed[p.pId] ? (
+                              <div className="space-y-2">
+                                <div className="rounded-2xl bg-muted/40 border border-border/40 p-4.5 text-sm text-ink-soft leading-relaxed transition-all duration-300 animate-in fade-in slide-in-from-top-1">
+                                  {p.translation}
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    setParagraphTranslationsRevealed((prev) => ({
+                                      ...prev,
+                                      [p.pId]: false,
+                                    }))
+                                  }
+                                  className="text-xs text-primary/80 font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer transition opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                >
+                                  <Languages className="h-3 w-3" />
+                                  <span>收起翻译</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() =>
+                                  setParagraphTranslationsRevealed((prev) => ({
+                                    ...prev,
+                                    [p.pId]: true,
+                                  }))
+                                }
+                                className="text-xs text-primary font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer transition opacity-0 group-hover:opacity-100 focus:opacity-100"
+                              >
+                                <Languages className="h-3 w-3" />
+                                <span>点击查看翻译</span>
+                              </button>
+                            ))}
                         </div>
                       ))
                     ) : (
@@ -1000,40 +1056,7 @@ function BankDetail() {
                       )}
                   </div>
 
-                  {/* Vocabulary Word Lookup Modal/Popover Overlay */}
-                  {selectedLookupWord && (
-                    <div className="rounded-2xl border border-primary/30 bg-[#FAF7EE] p-5 shadow-lg relative animate-in zoom-in-95 duration-200">
-                      <button
-                        onClick={() => setSelectedLookupWord(null)}
-                        className="absolute right-3.5 top-3.5 rounded-full p-1 text-ink-soft hover:bg-muted/80 transition cursor-pointer"
-                        aria-label="关闭释义"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-
-                      <div className="space-y-2">
-                        <div className="flex items-baseline gap-2">
-                          <h4 className="text-base font-bold text-ink font-display">
-                            {selectedLookupWord.word}
-                          </h4>
-                          {selectedLookupWord.phonetic && (
-                            <span className="font-mono text-xs text-ink-soft">
-                              {selectedLookupWord.phonetic}
-                            </span>
-                          )}
-                          <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-md font-semibold font-mono">
-                            考纲大纲词
-                          </span>
-                        </div>
-                        <p className="text-sm text-[#5C4017] font-semibold">
-                          【释义】{selectedLookupWord.definition}
-                        </p>
-                        <p className="text-xs text-ink-soft leading-relaxed italic bg-white/60 border border-border/40 p-2.5 rounded-xl mt-1">
-                          <strong>例句:</strong> {selectedLookupWord.example}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  {/* Vocabulary Word Lookup is now handled as a floating popover at the page root */}
                 </div>
 
                 {/* RIGHT PANE (40%): Solve Exercise & Answer Questions */}
@@ -1106,7 +1129,6 @@ function BankDetail() {
                                         ? "wrong"
                                         : "muted";
 
-
                                 return (
                                   <button
                                     key={opt.key}
@@ -1122,7 +1144,6 @@ function BankDetail() {
                                       } else {
                                         toast.error("回答错误，切换到精读模式查看详细解析");
                                       }
-
                                     }}
                                     disabled={isAnswered}
                                     className={`flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left text-xs transition-all cursor-pointer ${
@@ -1182,7 +1203,6 @@ function BankDetail() {
                                 )}
                               </div>
                             )}
-
                           </div>
 
                           {/* Navigation Controls Board */}
@@ -1469,6 +1489,154 @@ function BankDetail() {
         </div>
       )}
 
+      {selectedLookupWord && lookupCoords && (
+        <>
+          {/* Click surrounding screen area backdrop to close popover */}
+          <div
+            className="fixed inset-0 z-40 bg-black/[0.03] cursor-default"
+            onClick={() => {
+              setSelectedLookupWord(null);
+              setLookupCoords(null);
+            }}
+          />
+
+          {/* Floating Popover Word Definition Card */}
+          <div
+            style={(() => {
+              const cardWidth = 360;
+              const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1200;
+              const wordCenter = lookupCoords.left + lookupCoords.width / 2;
+              let left = wordCenter;
+
+              // Boundary clamp
+              if (left - cardWidth / 2 < 16) {
+                left = cardWidth / 2 + 16;
+              }
+              if (left + cardWidth / 2 > viewportWidth - 16) {
+                left = viewportWidth - cardWidth / 2 - 16;
+              }
+
+              const top = lookupCoords.top + lookupCoords.height + 8;
+
+              return {
+                position: "absolute" as const,
+                top: `${top}px`,
+                left: `${left}px`,
+                width: `${cardWidth}px`,
+                transform: "translateX(-50%)",
+                zIndex: 50,
+              };
+            })()}
+            className="rounded-2xl border border-slate-700 bg-[#13262F] text-white p-5 shadow-2xl relative animate-in zoom-in-95 duration-150"
+          >
+            {/* Header: Word & Action Buttons */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-lg font-bold text-white font-display leading-none">
+                    {selectedLookupWord.word}
+                  </h4>
+                  {selectedLookupWord.phonetic && (
+                    <span className="font-mono text-xs text-slate-400 italic">
+                      {selectedLookupWord.phonetic}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handlePronounce(selectedLookupWord.word)}
+                    className="rounded-full p-1 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                    title="朗读发音"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Tag for core syllabus vs normal vocabulary */}
+                <div className="flex items-center gap-1.5 select-none">
+                  <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-md font-semibold font-mono">
+                    考频
+                  </span>
+                  <span className="text-xs text-slate-300">
+                    {sectionMaterial.vocabulary?.[selectedLookupWord.word.toLowerCase()] ||
+                    sectionMaterial.vocabulary?.[selectedLookupWord.word]
+                      ? "在历年真题中属于核心必考词汇"
+                      : "在历年真题中属于重要真题生词"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action buttons (Fav, Close) */}
+              <div className="flex items-center gap-1 shrink-0 -mt-1">
+                <button
+                  onClick={() => handleToggleWordFav(selectedLookupWord)}
+                  className={`rounded-full p-1.5 transition cursor-pointer ${
+                    favoriteWords.includes(selectedLookupWord.word.toLowerCase())
+                      ? "text-amber-400 hover:text-amber-300"
+                      : "text-slate-400 hover:text-white hover:bg-white/10"
+                  }`}
+                  title={
+                    favoriteWords.includes(selectedLookupWord.word.toLowerCase())
+                      ? "移出生词本"
+                      : "收藏到生词本"
+                  }
+                >
+                  <Star
+                    className={`h-4.5 w-4.5 ${
+                      favoriteWords.includes(selectedLookupWord.word.toLowerCase())
+                        ? "fill-current"
+                        : ""
+                    }`}
+                  />
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedLookupWord(null);
+                    setLookupCoords(null);
+                  }}
+                  className="rounded-full p-1.5 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                  aria-label="关闭释义"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Word Definition Body */}
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-3 bg-emerald-500 rounded-sm" />
+                  <span className="text-[11px] font-bold text-emerald-400 tracking-wider">
+                    本文中含义
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-slate-100 pl-3 leading-relaxed">
+                  {selectedLookupWord.definition}
+                </p>
+              </div>
+
+              {selectedLookupWord.example && (
+                <div className="rounded-xl bg-black/20 border border-slate-800 p-3 mt-1 space-y-1">
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider select-none">
+                    例句 context
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed italic">
+                    {selectedLookupWord.example}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom prompt matching screenshot */}
+            <div className="mt-5 pt-3 border-t border-slate-800 flex flex-col gap-2">
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-[11px] text-emerald-400 flex items-center gap-1.5 select-none font-medium">
+                <Sparkles className="h-3 w-3 shrink-0" />
+                <span>已为您优先锁定情境语意，助力攻克长文阅读</span>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <Footer />
     </div>
   );
@@ -1511,11 +1679,63 @@ function AnnotatedText({
   text,
   vocabulary,
   onWordClick,
+  activeMode,
 }: {
   text: string;
   vocabulary: Record<string, ReadingWord>;
-  onWordClick: (word: ReadingWord) => void;
+  onWordClick: (word: ReadingWord, el: HTMLElement) => void;
+  activeMode: "analyze" | "answer";
 }) {
+  if (activeMode === "analyze") {
+    // Split by English words (handling optional apostrophes and hyphens)
+    const wordsRegex = /(\b[a-zA-Z]+[-'a-zA-Z]*\b)/g;
+    const parts = text.split(wordsRegex);
+
+    return (
+      <>
+        {parts.map((part, index) => {
+          const isWord = /^[a-zA-Z]+[-'a-zA-Z]*$/.test(part);
+          if (isWord) {
+            const lowerPart = part.toLowerCase();
+            // Check if it's in the passage vocabulary
+            const vocabKey = Object.keys(vocabulary || {}).find(
+              (k) => k.toLowerCase() === lowerPart,
+            );
+            if (vocabKey) {
+              return (
+                <span
+                  key={index}
+                  onClick={(e) => onWordClick(vocabulary[vocabKey], e.currentTarget)}
+                  className="border-b-2 border-dashed border-primary text-primary hover:bg-primary/10 cursor-pointer transition-all font-semibold relative group px-0.5 rounded-sm"
+                  title="考纲重点词"
+                >
+                  {part}
+                </span>
+              );
+            }
+
+            // For any other word in analyze mode, make it hoverable and clickable for dictionary lookup
+            return (
+              <span
+                key={index}
+                onClick={(e) => {
+                  const wordDef = lookupWord(part, vocabulary);
+                  onWordClick(wordDef, e.currentTarget);
+                }}
+                className="hover:bg-amber-100 text-ink cursor-pointer transition-all px-0.5 rounded-sm"
+                title="点击查词"
+              >
+                {part}
+              </span>
+            );
+          }
+          return <span key={index}>{part}</span>;
+        })}
+      </>
+    );
+  }
+
+  // In non-analyze mode, fall back to standard rendering (only predefined vocabulary words are interactive)
   if (!vocabulary || Object.keys(vocabulary).length === 0) {
     return <span>{text}</span>;
   }
@@ -1535,7 +1755,7 @@ function AnnotatedText({
           return (
             <span
               key={index}
-              onClick={() => onWordClick(vocabulary[vocabKey])}
+              onClick={(e) => onWordClick(vocabulary[vocabKey], e.currentTarget)}
               className="border-b border-dashed border-primary text-primary hover:text-primary/80 cursor-pointer transition-colors font-medium relative group px-0.5"
             >
               {part}
