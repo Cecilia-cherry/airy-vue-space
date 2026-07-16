@@ -1545,7 +1545,7 @@ function BankDetail() {
                 zIndex: 50,
               };
             })()}
-            className="rounded-3xl border border-primary/15 bg-card p-5 shadow-float relative animate-in zoom-in-95 duration-150"
+            className="rounded-3xl border border-primary/15 bg-card p-5 shadow-float relative animate-in zoom-in-95 duration-150 overflow-hidden"
           >
             {/* Soft decorative blob */}
             <div
