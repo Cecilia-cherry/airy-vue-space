@@ -1513,14 +1513,14 @@ function BankDetail() {
         <>
           {/* Click surrounding screen area backdrop to close popover */}
           <div
-            className="fixed inset-0 z-40 bg-black/[0.03] cursor-default"
+            className="fixed inset-0 z-40 bg-ink/[0.04] cursor-default"
             onClick={() => {
               setSelectedLookupWord(null);
               setLookupCoords(null);
             }}
           />
 
-          {/* Floating Popover Word Definition Card */}
+          {/* Floating Popover Word Definition Card — light, fresh palette */}
           <div
             style={(() => {
               const cardWidth = 360;
@@ -1528,7 +1528,6 @@ function BankDetail() {
               const wordCenter = lookupCoords.left + lookupCoords.width / 2;
               let left = wordCenter;
 
-              // Boundary clamp
               if (left - cardWidth / 2 < 16) {
                 left = cardWidth / 2 + 16;
               }
@@ -1536,7 +1535,7 @@ function BankDetail() {
                 left = viewportWidth - cardWidth / 2 - 16;
               }
 
-              const top = lookupCoords.top + lookupCoords.height + 8;
+              const top = lookupCoords.top + lookupCoords.height + 10;
 
               return {
                 position: "absolute" as const,
@@ -1547,51 +1546,57 @@ function BankDetail() {
                 zIndex: 50,
               };
             })()}
-            className="rounded-2xl border border-slate-700 bg-[#13262F] text-white p-5 shadow-2xl relative animate-in zoom-in-95 duration-150"
+            className="rounded-3xl border border-primary/15 bg-card p-5 shadow-float relative animate-in zoom-in-95 duration-150"
           >
+            {/* Soft decorative blob */}
+            <div
+              className="absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-60 pointer-events-none"
+              style={{ background: "var(--mint)" }}
+              aria-hidden
+            />
+
             {/* Header: Word & Action Buttons */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
+            <div className="relative flex items-start justify-between gap-4">
+              <div className="space-y-1.5">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="text-lg font-bold text-white font-display leading-none">
+                  <h4 className="font-display text-xl font-semibold text-ink leading-none">
                     {selectedLookupWord.word}
                   </h4>
                   {selectedLookupWord.phonetic && (
-                    <span className="font-mono text-xs text-slate-400 italic">
+                    <span className="font-mono text-xs text-ink-soft italic">
                       {selectedLookupWord.phonetic}
                     </span>
                   )}
                   <button
                     onClick={() => handlePronounce(selectedLookupWord.word)}
-                    className="rounded-full p-1 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                    className="rounded-full p-1 text-ink-soft hover:text-primary hover:bg-primary/5 transition cursor-pointer"
                     title="朗读发音"
                   >
                     <Volume2 className="h-4 w-4" />
                   </button>
                 </div>
 
-                {/* Tag for core syllabus vs normal vocabulary */}
+                {/* Frequency tag */}
                 <div className="flex items-center gap-1.5 select-none">
-                  <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-md font-semibold font-mono">
+                  <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-md font-semibold font-mono">
                     考频
                   </span>
-                  <span className="text-xs text-slate-300">
-                    {sectionMaterial.vocabulary?.[selectedLookupWord.word.toLowerCase()] ||
-                    sectionMaterial.vocabulary?.[selectedLookupWord.word]
-                      ? "在历年真题中属于核心必考词汇"
-                      : "在历年真题中属于重要真题生词"}
+                  <span className="text-xs text-ink-soft">
+                    {sectionMaterial?.vocabulary?.[selectedLookupWord.word.toLowerCase()] ||
+                    sectionMaterial?.vocabulary?.[selectedLookupWord.word]
+                      ? "历年真题核心必考词汇"
+                      : "历年真题重要生词"}
                   </span>
                 </div>
               </div>
 
-              {/* Action buttons (Fav, Close) */}
               <div className="flex items-center gap-1 shrink-0 -mt-1">
                 <button
                   onClick={() => handleToggleWordFav(selectedLookupWord)}
                   className={`rounded-full p-1.5 transition cursor-pointer ${
                     favoriteWords.includes(selectedLookupWord.word.toLowerCase())
-                      ? "text-amber-400 hover:text-amber-300"
-                      : "text-slate-400 hover:text-white hover:bg-white/10"
+                      ? "text-accent hover:text-accent/80"
+                      : "text-ink-soft hover:text-primary hover:bg-primary/5"
                   }`}
                   title={
                     favoriteWords.includes(selectedLookupWord.word.toLowerCase())
@@ -1612,7 +1617,7 @@ function BankDetail() {
                     setSelectedLookupWord(null);
                     setLookupCoords(null);
                   }}
-                  className="rounded-full p-1.5 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                  className="rounded-full p-1.5 text-ink-soft hover:text-ink hover:bg-muted transition cursor-pointer"
                   aria-label="关闭释义"
                 >
                   <X className="h-4 w-4" />
@@ -1621,41 +1626,42 @@ function BankDetail() {
             </div>
 
             {/* Word Definition Body */}
-            <div className="mt-4 space-y-3">
-              <div className="flex flex-col gap-1">
+            <div className="relative mt-4 space-y-3">
+              <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-3 bg-emerald-500 rounded-sm" />
-                  <span className="text-[11px] font-bold text-emerald-400 tracking-wider">
+                  <span className="inline-block w-1 h-3 bg-primary rounded-sm" />
+                  <span className="text-[11px] font-bold text-primary tracking-wider">
                     本文中含义
                   </span>
                 </div>
-                <p className="text-sm font-medium text-slate-100 pl-3 leading-relaxed">
+                <p className="text-sm font-medium text-ink pl-3 leading-relaxed">
                   {selectedLookupWord.definition}
                 </p>
               </div>
 
               {selectedLookupWord.example && (
-                <div className="rounded-xl bg-black/20 border border-slate-800 p-3 mt-1 space-y-1">
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider select-none">
-                    例句 context
+                <div className="rounded-2xl bg-muted/40 border border-border/60 p-3 mt-1 space-y-1">
+                  <div className="text-[10px] text-ink-soft font-bold uppercase tracking-wider select-none">
+                    例句 example
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed italic">
+                  <p className="text-xs text-ink leading-relaxed italic">
                     {selectedLookupWord.example}
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Bottom prompt matching screenshot */}
-            <div className="mt-5 pt-3 border-t border-slate-800 flex flex-col gap-2">
-              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-[11px] text-emerald-400 flex items-center gap-1.5 select-none font-medium">
+            {/* Footer prompt */}
+            <div className="relative mt-4 pt-3 border-t border-border/60">
+              <div className="rounded-xl bg-primary/8 border border-primary/15 px-3 py-1.5 text-[11px] text-primary flex items-center gap-1.5 select-none font-medium">
                 <Sparkles className="h-3 w-3 shrink-0" />
-                <span>已为您优先锁定情境语意，助力攻克长文阅读</span>
+                <span>已锁定情境语意，助力攻克长文阅读</span>
               </div>
             </div>
           </div>
         </>
       )}
+
 
       <Footer />
     </div>
