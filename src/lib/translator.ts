@@ -1,27 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { GoogleGenAI, Type } from "@google/genai";
+import { generateText } from "ai";
 import { z } from "zod";
-
-// Initialize Gemini client lazily on the server
-let aiClient: GoogleGenAI | null = null;
-
-function getAiClient() {
-  if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is not defined.");
-    }
-    aiClient = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
-  }
-  return aiClient;
-}
 
 export interface TranslationResult {
   word: string;
@@ -32,68 +11,44 @@ export interface TranslationResult {
   exampleTranslation: string;
 }
 
+const InputSchema = z.object({
+  word: z.string(),
+  context: z.string().optional(),
+});
+
 export const translateWord = createServerFn({ method: "POST" })
-  .validator(
-    z.object({
-      word: z.string(),
-      context: z.string().optional(),
-    }),
-  )
+  .validator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data }) => {
     const { word, context } = data;
-    try {
-      const ai = getAiClient();
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("Missing LOVABLE_API_KEY");
 
-      const systemInstruction = `You are a professional English-to-Chinese dictionary translator for Chinese students studying for English exams (like Kaoyan, CET-4/6, TOEFL, etc.).
-Given an English word and its optional context sentence/passage, return a JSON response containing:
-1. "word": the base form of the word.
-2. "phonetic": standard IPA phonetic notation of the word (e.g. "[ˈbrɔːdə(r)]").
-3. "commonDefinitions": a list of common Chinese definitions with their part of speech (e.g. ["adj. 宽阔的，广阔的", "adv. 宽阔地"]).
-4. "contextDefinition": the specific definition of the word as used in the given context sentence/passage (e.g. "adj. 更广泛的，更宽的").
-5. "example": an English example sentence using the word.
-6. "exampleTranslation": the Chinese translation of the example sentence.
+    const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
+    const gateway = createLovableAiGatewayProvider(apiKey);
 
-Provide a highly accurate, natural, and helpful translation. Keep the JSON structure clean.`;
+    const systemPrompt = `你是面向中国英语考试（考研、四六级、托福、雅思、高考）学生的专业英汉词典。
+根据给定的英文单词和上下文句子/段落，严格返回如下 JSON（不要包裹在 markdown 代码块中，不要多余文字）：
+{
+  "word": "单词原形",
+  "phonetic": "国际音标，例如 [ˈbrɔːdə(r)]",
+  "commonDefinitions": ["常见词性和中文释义，例如 adj. 宽阔的", "n. 广播"],
+  "contextDefinition": "该单词在给定上下文中的具体中文含义（含词性）",
+  "example": "一个使用该单词的英文例句",
+  "exampleTranslation": "例句的中文翻译"
+}
+必须准确、地道，contextDefinition 必须紧扣上下文语境。`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: `Word: "${word}"\nContext: "${context || ""}"`,
-        config: {
-          systemInstruction,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              word: { type: Type.STRING },
-              phonetic: { type: Type.STRING },
-              commonDefinitions: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
-              contextDefinition: { type: Type.STRING },
-              example: { type: Type.STRING },
-              exampleTranslation: { type: Type.STRING },
-            },
-            required: [
-              "word",
-              "phonetic",
-              "commonDefinitions",
-              "contextDefinition",
-              "example",
-              "exampleTranslation",
-            ],
-          },
-        },
-      });
+    const userPrompt = `Word: "${word}"\nContext: "${context || ""}"`;
 
-      const text = response.text;
-      if (!text) {
-        throw new Error("No response from AI translation model.");
-      }
+    const { text } = await generateText({
+      model: gateway("openai/gpt-5.5"),
+      system: systemPrompt,
+      prompt: userPrompt,
+    });
 
-      return JSON.parse(text) as TranslationResult;
-    } catch (error) {
-      console.error("AI Translation Error:", error);
-      throw error;
-    }
+    const cleaned = text
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "");
+    return JSON.parse(cleaned) as TranslationResult;
   });
