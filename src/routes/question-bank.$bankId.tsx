@@ -4,6 +4,7 @@ import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { getBank, getQuestions, loadFavorites, saveFavorites } from "@/lib/question-banks";
 import { getReadingMaterial, type ReadingWord } from "@/lib/reading-materials";
+import type { ExplainerResult } from "@/lib/explainer";
 import { lookupWord, loadFavoriteWords, toggleWordFavorite } from "@/lib/dictionary";
 import { toast } from "sonner";
 import {
@@ -27,6 +28,7 @@ import {
   X,
   Check,
   Headphones,
+  Cat,
 } from "lucide-react";
 
 export const Route = createFileRoute("/question-bank/$bankId")({
@@ -216,6 +218,15 @@ function BankDetail() {
   // Split-screen learning workstation states
   const [activeMode, setActiveMode] = useState<"analyze" | "answer">("answer");
   const [selectedLookupWord, setSelectedLookupWord] = useState<ReadingWord | null>(null);
+  const [aiTranslation, setAiTranslation] = useState<{
+    word: string;
+    phonetic: string;
+    commonDefinitions: string[];
+    contextDefinition: string;
+    example: string;
+    exampleTranslation: string;
+  } | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [lookupCoords, setLookupCoords] = useState<{
     top: number;
     left: number;
@@ -228,6 +239,8 @@ function BankDetail() {
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
   const [showTranslationBanner, setShowTranslationBanner] = useState<boolean>(true);
   const [explanationOpen, setExplanationOpen] = useState<Record<string, boolean>>({});
+  const [aiExplanations, setAiExplanations] = useState<Record<string, ExplainerResult>>({});
+  const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
   const [pendingAnswers, setPendingAnswers] = useState<Record<string, string>>({});
 
   // Simulated audio player states
@@ -245,6 +258,8 @@ function BankDetail() {
     setIsPlayingAudio(false);
     setAudioProgress(15);
     setExplanationOpen({});
+    setAiExplanations({});
+    setLoadingExplanations({});
   }, [selectedSectionIndex]);
 
   // Audio progress tick simulation
@@ -434,7 +449,41 @@ function BankDetail() {
     }
   };
 
-  const handleWordClick = (wordObj: ReadingWord, element: HTMLElement) => {
+  const fetchDetailedExplanation = async (
+    targetQId: string,
+    currentQ: {
+      stem: string;
+      options: { key: string; text: string }[];
+      answer: string;
+      explain: string;
+    },
+  ) => {
+    if (aiExplanations[targetQId] || loadingExplanations[targetQId]) return;
+
+    setLoadingExplanations((prev) => ({ ...prev, [targetQId]: true }));
+    try {
+      const passageText =
+        sectionMaterial?.paragraphs?.map((p: { text: string }) => p.text).join("\n") || "";
+      const { getDetailedExplanation } = await import("@/lib/explainer");
+      const result = await getDetailedExplanation({
+        data: {
+          passage: passageText,
+          questionStem: currentQ.stem,
+          options: currentQ.options,
+          correctAnswer: currentQ.answer,
+          originalExplanation: currentQ.explain,
+        },
+      });
+      setAiExplanations((prev) => ({ ...prev, [targetQId]: result }));
+    } catch (error) {
+      console.error("Failed to fetch detailed explanation:", error);
+      toast.error("获取AI深度解析失败，请稍后重试");
+    } finally {
+      setLoadingExplanations((prev) => ({ ...prev, [targetQId]: false }));
+    }
+  };
+
+  const handleWordClick = (wordObj: ReadingWord, element: HTMLElement, contextText?: string) => {
     setSelectedLookupWord(wordObj);
     const rect = element.getBoundingClientRect();
     const scrollY = window.scrollY;
@@ -445,6 +494,27 @@ function BankDetail() {
       height: rect.height,
       width: rect.width,
     });
+
+    setAiTranslation(null);
+    setIsTranslating(true);
+
+    const cleanWord = wordObj.word.trim();
+    import("@/lib/translator")
+      .then(({ translateWord }) => {
+        translateWord({ data: { word: cleanWord, context: contextText } })
+          .then((result) => {
+            setAiTranslation(result);
+            setIsTranslating(false);
+          })
+          .catch((err) => {
+            console.error("Failed to translate word with Gemini:", err);
+            setIsTranslating(false);
+          });
+      })
+      .catch((err) => {
+        console.error("Failed to load translator module:", err);
+        setIsTranslating(false);
+      });
   };
 
   const handlePronounce = (text: string) => {
@@ -975,7 +1045,9 @@ function BankDetail() {
                             <AnnotatedText
                               text={p.text}
                               vocabulary={sectionMaterial.vocabulary}
-                              onWordClick={(wordObj, el) => handleWordClick(wordObj, el)}
+                              onWordClick={(wordObj, el, contextText) =>
+                                handleWordClick(wordObj, el, contextText)
+                              }
                               activeMode={activeMode}
                             />
                           </p>
@@ -1070,9 +1142,16 @@ function BankDetail() {
                         sectionMaterial.questions.length - 1,
                       );
                       const q = sectionMaterial.questions[qIndex];
-                      const qId = `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}_q_${qIndex}`;
+                      const currentSectionQIdPrefix = `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}_q_`;
+
+                      // Check if any question in the current section has been submitted/revealed
+                      const isSectionSubmitted = sectionMaterial.questions.some((_, qIdx) => {
+                        return revealed[`${currentSectionQIdPrefix}${qIdx}`] !== undefined;
+                      });
+
+                      const qId = `${currentSectionQIdPrefix}${qIndex}`;
                       const committed = revealed[qId];
-                      const isAnswered = committed !== undefined;
+                      const isAnswered = isSectionSubmitted;
                       const pending = pendingAnswers[qId];
                       const picked = isAnswered ? committed : pending;
 
@@ -1169,104 +1248,327 @@ function BankDetail() {
                               })}
                             </div>
 
-                            {/* Explanation is available ONLY in 精读模式, and stays collapsed until the user opens it */}
-                            {isAnswered && activeMode === "analyze" && (
-                              <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-2 animate-in fade-in duration-300">
+                            {/* Explanation is available ONLY after clicking submit, and stays collapsed until the user opens it */}
+                            {isAnswered && (
+                              <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-3 animate-in fade-in duration-300">
                                 <button
                                   type="button"
-                                  onClick={() =>
+                                  onClick={() => {
+                                    const nextOpen = !explanationOpen[qId];
                                     setExplanationOpen((prev) => ({
                                       ...prev,
-                                      [qId]: !prev[qId],
-                                    }))
-                                  }
+                                      [qId]: nextOpen,
+                                    }));
+                                    if (nextOpen) {
+                                      fetchDetailedExplanation(qId, q);
+                                    }
+                                  }}
                                   className="flex w-full items-center justify-between gap-2 text-xs font-bold text-primary cursor-pointer"
                                 >
-                                  <span className="flex items-center gap-1">
-                                    <Sparkles className="h-3.5 w-3.5" />
-                                    <span>官方深度解析与思路指引</span>
+                                  <span className="flex items-center gap-1.5">
+                                    <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
+                                    <span>AI 官方深度解析与原文出处</span>
                                   </span>
-                                  <span className="text-[11px] font-medium text-primary/80">
-                                    {explanationOpen[qId] ? "收起" : "点击展开"}
+                                  <span className="text-[11px] font-medium text-primary/80 bg-primary/10 px-2 py-0.5 rounded-full">
+                                    {explanationOpen[qId] ? "收起解析" : "点击展开详细解析"}
                                   </span>
                                 </button>
+
                                 {explanationOpen[qId] && (
-                                  <p className="text-xs leading-relaxed text-ink-soft pt-2 border-t border-primary/10 animate-in fade-in slide-in-from-top-1 duration-200">
-                                    {q.explain}
-                                  </p>
+                                  <div className="pt-3 border-t border-primary/10 space-y-4 text-xs leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
+                                    {loadingExplanations[qId] ? (
+                                      <div className="flex flex-col items-center justify-center py-6 space-y-2 text-center text-primary/70">
+                                        <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                        <p className="text-[11px] font-medium">
+                                          正在为您智能剖析考题、精确定位原文出处中...
+                                        </p>
+                                      </div>
+                                    ) : aiExplanations[qId] ? (
+                                      <div className="space-y-4">
+                                        {/* 1. 原文出处定位 */}
+                                        <div className="rounded-xl bg-background/50 border border-emerald-500/10 p-3.5 space-y-2">
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                                              <BookmarkCheck className="h-3.5 w-3.5" />
+                                              <span>原文定位与出处</span>
+                                            </span>
+                                            <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-0.5 rounded-md">
+                                              {aiExplanations[qId].sourceLocation}
+                                            </span>
+                                          </div>
+                                          <p className="font-serif italic text-ink text-[12px] leading-relaxed pl-2.5 border-l-2 border-emerald-500">
+                                            "{aiExplanations[qId].sourceQuote}"
+                                          </p>
+                                          <p className="text-ink-soft text-[11px] pl-2.5">
+                                            {aiExplanations[qId].sourceQuoteTranslation}
+                                          </p>
+                                        </div>
+
+                                        {/* 2. 深度思路指引 */}
+                                        <div className="space-y-1">
+                                          <h5 className="text-[11px] font-bold text-primary">
+                                            💡 深度解题思路
+                                          </h5>
+                                          <p className="text-ink-soft leading-relaxed pl-1 text-[11px]">
+                                            {aiExplanations[qId].detailedExplanation}
+                                          </p>
+                                        </div>
+
+                                        {/* 3. 选项逐一剖析 */}
+                                        <div className="space-y-2">
+                                          <h5 className="text-[11px] font-bold text-primary">
+                                            🔍 选项逐一分析
+                                          </h5>
+                                          <div className="grid gap-2">
+                                            {aiExplanations[qId].optionAnalysis?.map((optAn) => (
+                                              <div
+                                                key={optAn.key}
+                                                className={`rounded-lg p-2.5 border text-[11px] leading-relaxed ${
+                                                  optAn.isCorrect
+                                                    ? "bg-emerald-50/40 dark:bg-emerald-950/10 border-emerald-500/10 text-ink"
+                                                    : "bg-muted/30 border-border/40 text-ink-soft"
+                                                }`}
+                                              >
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                  <span
+                                                    className={`flex h-4 w-4 items-center justify-center rounded text-[10px] font-mono font-bold ${
+                                                      optAn.isCorrect
+                                                        ? "bg-emerald-500 text-white"
+                                                        : "bg-muted-foreground/20 text-ink-soft"
+                                                    }`}
+                                                  >
+                                                    {optAn.key}
+                                                  </span>
+                                                  <span
+                                                    className={`text-[10px] font-semibold ${
+                                                      optAn.isCorrect
+                                                        ? "text-emerald-600"
+                                                        : "text-ink-soft"
+                                                    }`}
+                                                  >
+                                                    {optAn.isCorrect ? "正确选项" : "干扰排除"}
+                                                  </span>
+                                                </div>
+                                                <p className="pl-5.5 text-[11px] text-ink-soft leading-relaxed">
+                                                  {optAn.explanation}
+                                                </p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+
+                                        {/* 4. 核心词汇提炼 */}
+                                        {aiExplanations[qId].keyVocabulary &&
+                                          aiExplanations[qId].keyVocabulary.length > 0 && (
+                                            <div className="space-y-2 pt-1">
+                                              <h5 className="text-[11px] font-bold text-primary">
+                                                📚 核心词汇提炼
+                                              </h5>
+                                              <div className="flex flex-wrap gap-1.5">
+                                                {aiExplanations[qId].keyVocabulary.map(
+                                                  (vocab, vIdx) => (
+                                                    <div
+                                                      key={vIdx}
+                                                      className="bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border border-amber-200/50 dark:border-amber-800/30 px-2 py-1 rounded-lg flex items-center gap-1.5"
+                                                    >
+                                                      <span className="font-bold text-[11px] font-mono">
+                                                        {vocab.word}
+                                                      </span>
+                                                      <span className="text-[10px] text-amber-700/80 dark:text-amber-300/80">
+                                                        {vocab.definition}
+                                                      </span>
+                                                    </div>
+                                                  ),
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                      </div>
+                                    ) : (
+                                      /* Fallback to local explanation if getDetailedExplanation wasn't successful */
+                                      <p className="text-xs leading-relaxed text-ink-soft pt-1">
+                                        {q.explain}
+                                      </p>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             )}
                           </div>
 
                           {/* Navigation Controls Board */}
-                          <div className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            {/* Question Tab Badges */}
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {sectionMaterial.questions.map((_, qIdx) => {
-                                const targetQId = `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}_q_${qIdx}`;
-                                const ans = revealed[targetQId];
-                                const isCurrent = qIndex === qIdx;
+                          <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-4">
+                            {/* Top row: Badges and Stats */}
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/10 pb-3">
+                              {/* Question Tab Badges */}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {sectionMaterial.questions.map((qObj, qIdx) => {
+                                  const targetQId = `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}_q_${qIdx}`;
+                                  const ans = revealed[targetQId];
+                                  const isCurrent = qIndex === qIdx;
+                                  const isRight = ans === qObj.answer;
+                                  const hasPending = pendingAnswers[targetQId] !== undefined;
 
-                                return (
+                                  let badgeClass =
+                                    "bg-background border-border text-ink-soft hover:bg-muted";
+                                  if (isCurrent) {
+                                    badgeClass = "bg-primary border-primary text-white shadow-sm";
+                                  } else if (isSectionSubmitted) {
+                                    if (isRight) {
+                                      badgeClass =
+                                        "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20";
+                                    } else {
+                                      badgeClass =
+                                        "bg-rose-500/10 border-rose-500/20 text-rose-600 hover:bg-rose-500/20";
+                                    }
+                                  } else if (hasPending) {
+                                    badgeClass =
+                                      "bg-primary/5 border-primary/20 text-primary hover:bg-primary/10";
+                                  }
+
+                                  return (
+                                    <button
+                                      key={qIdx}
+                                      onClick={() => setActiveQuestionIndex(qIdx)}
+                                      className={`flex h-8 w-8 items-center justify-center rounded-xl text-xs font-mono font-bold transition border cursor-pointer ${badgeClass}`}
+                                    >
+                                      Q{qIdx + 1}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Progress Stats / Reset / Score */}
+                              {isSectionSubmitted ? (
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-2.5 py-1 rounded-lg border border-emerald-500/10">
+                                    得分:{" "}
+                                    {(() => {
+                                      let correct = 0;
+                                      sectionMaterial.questions.forEach((question, idx) => {
+                                        const targetQId = `${currentSectionQIdPrefix}${idx}`;
+                                        if (revealed[targetQId] === question.answer) {
+                                          correct++;
+                                        }
+                                      });
+                                      return `${correct} / ${sectionMaterial.questions.length}`;
+                                    })()}
+                                  </span>
                                   <button
-                                    key={qIdx}
-                                    onClick={() => setActiveQuestionIndex(qIdx)}
-                                    className={`flex h-8.5 w-8.5 items-center justify-center rounded-xl text-xs font-mono font-bold transition border cursor-pointer ${
-                                      isCurrent
-                                        ? "bg-primary border-primary text-white shadow-sm"
-                                        : ans !== undefined
-                                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20"
-                                          : "bg-background border-border text-ink-soft hover:bg-muted"
-                                    }`}
+                                    onClick={() => {
+                                      const nextRevealed = { ...revealed };
+                                      const nextPending = { ...pendingAnswers };
+                                      sectionMaterial.questions.forEach((_, idx) => {
+                                        const targetQId = `${currentSectionQIdPrefix}${idx}`;
+                                        delete nextRevealed[targetQId];
+                                        delete nextPending[targetQId];
+                                      });
+                                      setRevealed(nextRevealed);
+                                      saveProgress(nextRevealed);
+                                      setPendingAnswers(nextPending);
+                                      setActiveQuestionIndex(0);
+                                      setActiveMode("answer");
+                                      toast("已清空当前小节作答记录，可以重新作答啦！");
+                                    }}
+                                    className="inline-flex items-center gap-1 text-[11px] text-ink-soft hover:text-destructive transition cursor-pointer"
+                                    title="清空当前小节并重新做题"
                                   >
-                                    Q{qIdx + 1}
+                                    <RotateCcw className="h-3 w-3" />
+                                    <span>重新做题</span>
                                   </button>
-                                );
-                              })}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-ink-soft">
+                                  已作答:{" "}
+                                  {
+                                    sectionMaterial.questions.filter(
+                                      (_, idx) =>
+                                        pendingAnswers[`${currentSectionQIdPrefix}${idx}`] !==
+                                        undefined,
+                                    ).length
+                                  }{" "}
+                                  / {sectionMaterial.questions.length}
+                                </span>
+                              )}
                             </div>
 
-                            {/* Submit / Next Button */}
-                            {!isAnswered ? (
-                              <button
-                                onClick={() => {
-                                  if (!pending) {
-                                    toast("请先选择一个选项再提交");
-                                    return;
-                                  }
-                                  const next = { ...revealed, [qId]: pending };
-                                  setRevealed(next);
-                                  saveProgress(next);
-                                  if (q.answer === pending) {
-                                    toast.success("回答正确！太棒了 🎉");
-                                  } else if (activeMode === "analyze") {
-                                    toast.error(`回答错误，正确答案是 ${q.answer}`);
-                                  } else {
-                                    toast.error("回答错误，切换到精读模式查看详细解析");
-                                  }
-                                }}
-                                className="rounded-xl bg-primary text-white px-4 py-2 text-xs font-semibold hover:bg-primary/90 transition shadow-sm cursor-pointer whitespace-nowrap self-stretch sm:self-auto text-center disabled:opacity-50"
-                                disabled={!pending}
-                              >
-                                提交答案
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  if (qIndex < sectionMaterial.questions.length - 1) {
-                                    setActiveQuestionIndex(qIndex + 1);
-                                  } else {
-                                    toast.success("✨ 恭喜你！已完成当前真题小节的所有试题！");
+                            {/* Bottom row: Prev/Next & Submit */}
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setActiveQuestionIndex(qIndex - 1)}
+                                  disabled={qIndex === 0}
+                                  className="rounded-xl border border-border bg-background p-2 text-ink-soft hover:text-ink hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                                  aria-label="上一题"
+                                >
+                                  <ChevronLeft className="h-4 w-4" />
+                                </button>
+                                <span className="text-xs font-mono text-ink-soft select-none">
+                                  {qIndex + 1} / {sectionMaterial.questions.length}
+                                </span>
+                                <button
+                                  onClick={() => setActiveQuestionIndex(qIndex + 1)}
+                                  disabled={qIndex === sectionMaterial.questions.length - 1}
+                                  className="rounded-xl border border-border bg-background p-2 text-ink-soft hover:text-ink hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                                  aria-label="下一题"
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                </button>
+                              </div>
+
+                              {!isSectionSubmitted ? (
+                                <button
+                                  onClick={() => {
+                                    const totalQuestions = sectionMaterial.questions.length;
+                                    const answeredCount = sectionMaterial.questions.filter(
+                                      (_, idx) =>
+                                        pendingAnswers[`${currentSectionQIdPrefix}${idx}`] !==
+                                        undefined,
+                                    ).length;
+
+                                    if (answeredCount === 0) {
+                                      toast.error("请至少选择一个选项再提交批改哦！");
+                                      return;
+                                    }
+
+                                    if (answeredCount < totalQuestions) {
+                                      toast("有未作答的题目，已自动计为零分。正在为您阅卷批改...");
+                                    }
+
+                                    const nextRevealed = { ...revealed };
+                                    let correctCount = 0;
+                                    sectionMaterial.questions.forEach((question, idx) => {
+                                      const targetQId = `${currentSectionQIdPrefix}${idx}`;
+                                      const val = pendingAnswers[targetQId] || "";
+                                      nextRevealed[targetQId] = val;
+                                      if (question.answer === val) {
+                                        correctCount++;
+                                      }
+                                    });
+
+                                    setRevealed(nextRevealed);
+                                    saveProgress(nextRevealed);
+                                    setActiveMode("analyze"); // Switch to analyze/explanation mode
+                                    toast.success(
+                                      `🎉 批改完成！你答对 ${correctCount} / ${totalQuestions} 道题`,
+                                    );
+                                  }}
+                                  className="rounded-xl bg-primary text-white px-4 py-2.5 text-xs font-semibold hover:bg-primary/90 transition shadow-sm cursor-pointer whitespace-nowrap"
+                                >
+                                  提交
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    toast.success("✨ 恭喜你！已完成当前真题小节！");
                                     setSelectedSectionIndex(null);
-                                  }
-                                }}
-                                className="rounded-xl bg-ink text-background px-4 py-2 text-xs font-semibold hover:bg-ink/90 transition shadow-sm cursor-pointer whitespace-nowrap self-stretch sm:self-auto text-center"
-                              >
-                                {qIndex < sectionMaterial.questions.length - 1
-                                  ? "下一题"
-                                  : "提交完成"}
-                              </button>
-                            )}
+                                  }}
+                                  className="rounded-xl bg-ink text-background px-4 py-2.5 text-xs font-semibold hover:bg-ink/90 transition shadow-sm cursor-pointer whitespace-nowrap"
+                                >
+                                  完成本小节
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -1519,7 +1821,7 @@ function BankDetail() {
             }}
           />
 
-          {/* Floating Popover Word Definition Card — light, fresh palette */}
+          {/* Floating Popover Word Definition Card — light, fresh minimalist cat style */}
           <div
             style={(() => {
               const cardWidth = 360;
@@ -1545,116 +1847,219 @@ function BankDetail() {
                 zIndex: 50,
               };
             })()}
-            className="rounded-3xl border border-primary/15 bg-card p-5 shadow-float relative animate-in zoom-in-95 duration-150 overflow-hidden"
+            className="relative animate-in zoom-in-95 duration-150"
           >
-            {/* Soft decorative blob */}
-            <div
-              className="absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-60 pointer-events-none"
-              style={{ background: "var(--mint)" }}
-              aria-hidden
-            />
+            {/* Minimalist Cat Ears */}
+            {/* Left Ear */}
+            <div className="absolute -top-3 left-8 w-6 h-6 bg-card border-t border-l border-primary/15 rounded-tl-[70%] rounded-tr-[30%] rotate-[15deg] z-10 flex items-center justify-center shadow-[-2px_-2px_4px_rgba(0,0,0,0.02)]">
+              <div className="w-3.5 h-3.5 bg-rose-100/60 dark:bg-rose-950/40 rounded-tl-[60%] rounded-tr-[20%]" />
+            </div>
+            {/* Right Ear */}
+            <div className="absolute -top-3 right-8 w-6 h-6 bg-card border-t border-r border-primary/15 rounded-tr-[70%] rounded-tl-[30%] -rotate-[15deg] z-10 flex items-center justify-center shadow-[2px_-2px_4px_rgba(0,0,0,0.02)]">
+              <div className="w-3.5 h-3.5 bg-rose-100/60 dark:bg-rose-950/40 rounded-tr-[60%] rounded-tl-[20%]" />
+            </div>
 
-            {/* Header: Word & Action Buttons */}
-            <div className="relative flex items-start justify-between gap-4">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-display text-xl font-semibold text-ink leading-none">
-                    {selectedLookupWord.word}
-                  </h4>
-                  {selectedLookupWord.phonetic && (
-                    <span className="font-mono text-xs text-ink-soft italic">
-                      {selectedLookupWord.phonetic}
+            {/* Main Popover Body Container */}
+            <div className="rounded-3xl border border-primary/15 bg-card p-5 shadow-float relative overflow-hidden">
+              {/* Inner background clip for soft decorative blob & cat face watermark */}
+              <div
+                className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none"
+                aria-hidden
+              >
+                {/* Soft decorative blob */}
+                <div
+                  className="absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-60"
+                  style={{ background: "var(--mint)" }}
+                />
+                {/* Subtle background cat watermark */}
+                <Cat className="absolute -right-4 -bottom-4 h-16 w-16 opacity-5 text-primary/80 rotate-[15deg]" />
+              </div>
+
+              {/* Minimalist Cat Whiskers on Borders */}
+              {/* Left whiskers */}
+              <div className="absolute -left-1 top-12 flex flex-col gap-1 pointer-events-none opacity-40 select-none">
+                <div className="w-3 h-[1px] bg-primary/20 rotate-[10deg]" />
+                <div className="w-4.5 h-[1px] bg-primary/25" />
+                <div className="w-3.5 h-[1px] bg-primary/20 -rotate-[10deg]" />
+              </div>
+              {/* Right whiskers */}
+              <div className="absolute -right-1 top-12 flex flex-col gap-1 pointer-events-none opacity-40 select-none items-end">
+                <div className="w-3 h-[1px] bg-primary/20 -rotate-[10deg]" />
+                <div className="w-4.5 h-[1px] bg-primary/25" />
+                <div className="w-3.5 h-[1px] bg-primary/20 rotate-[10deg]" />
+              </div>
+
+              {/* Header: Word & Action Buttons */}
+              <div className="relative flex items-start justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-display text-xl font-semibold text-ink leading-none flex items-center gap-1.5">
+                      <Cat className="h-5 w-5 text-primary/80 shrink-0" />
+                      <span>{selectedLookupWord.word}</span>
+                    </h4>
+                    {(aiTranslation?.phonetic || selectedLookupWord.phonetic) && (
+                      <span className="font-mono text-xs text-ink-soft italic">
+                        {aiTranslation?.phonetic || selectedLookupWord.phonetic}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handlePronounce(selectedLookupWord.word)}
+                      className="rounded-full p-1 text-ink-soft hover:text-primary hover:bg-primary/5 transition cursor-pointer"
+                      title="朗读发音"
+                    >
+                      <Volume2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* Frequency tag */}
+                  <div className="flex items-center gap-1.5 select-none">
+                    <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-md font-semibold font-mono">
+                      考频
                     </span>
-                  )}
+                    <span className="text-xs text-ink-soft">
+                      {sectionMaterial?.vocabulary?.[selectedLookupWord.word.toLowerCase()] ||
+                      sectionMaterial?.vocabulary?.[selectedLookupWord.word]
+                        ? "历年真题核心必考词汇"
+                        : "历年真题重要生词"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0 -mt-1">
                   <button
-                    onClick={() => handlePronounce(selectedLookupWord.word)}
-                    className="rounded-full p-1 text-ink-soft hover:text-primary hover:bg-primary/5 transition cursor-pointer"
-                    title="朗读发音"
+                    onClick={() => handleToggleWordFav(selectedLookupWord)}
+                    className={`rounded-full p-1.5 transition cursor-pointer ${
+                      favoriteWords.includes(selectedLookupWord.word.toLowerCase())
+                        ? "text-accent hover:text-accent/80"
+                        : "text-ink-soft hover:text-primary hover:bg-primary/5"
+                    }`}
+                    title={
+                      favoriteWords.includes(selectedLookupWord.word.toLowerCase())
+                        ? "移出生词本"
+                        : "收藏到生词本"
+                    }
                   >
-                    <Volume2 className="h-4 w-4" />
+                    <Star
+                      className={`h-4.5 w-4.5 ${
+                        favoriteWords.includes(selectedLookupWord.word.toLowerCase())
+                          ? "fill-current"
+                          : ""
+                      }`}
+                    />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedLookupWord(null);
+                      setLookupCoords(null);
+                    }}
+                    className="rounded-full p-1.5 text-ink-soft hover:text-ink hover:bg-muted transition cursor-pointer"
+                    aria-label="关闭释义"
+                  >
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
-
-                {/* Frequency tag */}
-                <div className="flex items-center gap-1.5 select-none">
-                  <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-md font-semibold font-mono">
-                    考频
-                  </span>
-                  <span className="text-xs text-ink-soft">
-                    {sectionMaterial?.vocabulary?.[selectedLookupWord.word.toLowerCase()] ||
-                    sectionMaterial?.vocabulary?.[selectedLookupWord.word]
-                      ? "历年真题核心必考词汇"
-                      : "历年真题重要生词"}
-                  </span>
-                </div>
               </div>
 
-              <div className="flex items-center gap-1 shrink-0 -mt-1">
-                <button
-                  onClick={() => handleToggleWordFav(selectedLookupWord)}
-                  className={`rounded-full p-1.5 transition cursor-pointer ${
-                    favoriteWords.includes(selectedLookupWord.word.toLowerCase())
-                      ? "text-accent hover:text-accent/80"
-                      : "text-ink-soft hover:text-primary hover:bg-primary/5"
-                  }`}
-                  title={
-                    favoriteWords.includes(selectedLookupWord.word.toLowerCase())
-                      ? "移出生词本"
-                      : "收藏到生词本"
-                  }
-                >
-                  <Star
-                    className={`h-4.5 w-4.5 ${
-                      favoriteWords.includes(selectedLookupWord.word.toLowerCase())
-                        ? "fill-current"
-                        : ""
-                    }`}
-                  />
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedLookupWord(null);
-                    setLookupCoords(null);
-                  }}
-                  className="rounded-full p-1.5 text-ink-soft hover:text-ink hover:bg-muted transition cursor-pointer"
-                  aria-label="关闭释义"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Word Definition Body */}
-            <div className="relative mt-4 space-y-3">
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-block w-1 h-3 bg-primary rounded-sm" />
-                  <span className="text-[11px] font-bold text-primary tracking-wider">
-                    本文中含义
-                  </span>
-                </div>
-                <p className="text-sm font-medium text-ink pl-3 leading-relaxed">
-                  {selectedLookupWord.definition}
-                </p>
-              </div>
-
-              {selectedLookupWord.example && (
-                <div className="rounded-2xl bg-muted/40 border border-border/60 p-3 mt-1 space-y-1">
-                  <div className="text-[10px] text-ink-soft font-bold uppercase tracking-wider select-none">
-                    例句 example
+              {/* Word Definition Body */}
+              <div className="relative mt-4 space-y-3">
+                {isTranslating ? (
+                  <div className="space-y-2.5 py-1">
+                    <div className="flex items-center gap-1.5 text-primary animate-pulse">
+                      <Sparkles className="h-3.5 w-3.5 animate-spin duration-1000" />
+                      <span className="text-[11px] font-bold tracking-wider">
+                        AI 智能释义分析中...
+                      </span>
+                    </div>
+                    <div className="h-4 bg-muted/60 animate-pulse rounded w-3/4" />
+                    <div className="h-3 bg-muted/60 animate-pulse rounded w-1/2" />
+                    <div className="h-12 bg-muted/30 animate-pulse rounded-xl mt-2" />
                   </div>
-                  <p className="text-xs text-ink leading-relaxed italic">
-                    {selectedLookupWord.example}
-                  </p>
-                </div>
-              )}
-            </div>
+                ) : aiTranslation ? (
+                  <div className="space-y-3">
+                    {/* 本文释义 (In-text context meaning) */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5 text-primary">
+                        <Cat className="h-3.5 w-3.5" />
+                        <span className="text-[11px] font-bold tracking-wider">本文中含义</span>
+                      </div>
+                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 pl-1 leading-relaxed animate-fade-in">
+                        {aiTranslation.contextDefinition}
+                      </p>
+                    </div>
 
-            {/* Footer prompt */}
-            <div className="relative mt-4 pt-3 border-t border-border/60">
-              <div className="rounded-xl bg-primary/8 border border-primary/15 px-3 py-1.5 text-[11px] text-primary flex items-center gap-1.5 select-none font-medium">
-                <Sparkles className="h-3 w-3 shrink-0" />
-                <span>已锁定情境语意，助力攻克长文阅读</span>
+                    {/* 常见意思 (Common definitions) */}
+                    {aiTranslation.commonDefinitions &&
+                      aiTranslation.commonDefinitions.length > 0 && (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                            <BookOpen className="h-3.5 w-3.5" />
+                            <span className="text-[11px] font-bold tracking-wider">
+                              常见中文意思
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pl-1">
+                            {aiTranslation.commonDefinitions.map((def: string, i: number) => (
+                              <span
+                                key={i}
+                                className="text-xs bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-lg border border-amber-200/50 dark:border-amber-800/30"
+                              >
+                                {def}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* AI Example sentence */}
+                    {aiTranslation.example && (
+                      <div className="rounded-2xl bg-muted/40 border border-border/60 p-3 mt-1 space-y-1">
+                        <div className="text-[10px] text-ink-soft font-bold uppercase tracking-wider select-none">
+                          情境例句 example
+                        </div>
+                        <p className="text-xs text-ink leading-relaxed italic">
+                          {aiTranslation.example}
+                        </p>
+                        {aiTranslation.exampleTranslation && (
+                          <p className="text-[11px] text-ink-soft leading-relaxed">
+                            {aiTranslation.exampleTranslation}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // Fallback to offline / local definitions
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5 text-primary">
+                        <Cat className="h-3.5 w-3.5" />
+                        <span className="text-[11px] font-bold tracking-wider">本文中含义</span>
+                      </div>
+                      <p className="text-sm font-medium text-ink pl-1 leading-relaxed">
+                        {selectedLookupWord.definition}
+                      </p>
+                    </div>
+
+                    {selectedLookupWord.example && (
+                      <div className="rounded-2xl bg-muted/40 border border-border/60 p-3 mt-1 space-y-1">
+                        <div className="text-[10px] text-ink-soft font-bold uppercase tracking-wider select-none">
+                          例句 example
+                        </div>
+                        <p className="text-xs text-ink leading-relaxed italic">
+                          {selectedLookupWord.example}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer prompt */}
+              <div className="relative mt-4 pt-3 border-t border-border/60">
+                <div className="rounded-xl bg-primary/8 border border-primary/15 px-3 py-1.5 text-[11px] text-primary flex items-center gap-1.5 select-none font-medium">
+                  <Sparkles className="h-3 w-3 shrink-0" />
+                  <span>已锁定情境语意，助力攻克长文阅读</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1707,7 +2112,7 @@ function AnnotatedText({
 }: {
   text: string;
   vocabulary: Record<string, ReadingWord>;
-  onWordClick: (word: ReadingWord, el: HTMLElement) => void;
+  onWordClick: (word: ReadingWord, el: HTMLElement, contextText?: string) => void;
   activeMode: "analyze" | "answer";
 }) {
   if (activeMode === "analyze") {
@@ -1729,7 +2134,7 @@ function AnnotatedText({
               return (
                 <span
                   key={index}
-                  onClick={(e) => onWordClick(vocabulary[vocabKey], e.currentTarget)}
+                  onClick={(e) => onWordClick(vocabulary[vocabKey], e.currentTarget, text)}
                   className="border-b-2 border-dashed border-primary text-primary hover:bg-primary/10 cursor-pointer transition-all font-semibold relative group px-0.5 rounded-sm"
                   title="考纲重点词"
                 >
@@ -1744,7 +2149,7 @@ function AnnotatedText({
                 key={index}
                 onClick={(e) => {
                   const wordDef = lookupWord(part, vocabulary);
-                  onWordClick(wordDef, e.currentTarget);
+                  onWordClick(wordDef, e.currentTarget, text);
                 }}
                 className="hover:bg-amber-100 text-ink cursor-pointer transition-all px-0.5 rounded-sm"
                 title="点击查词"
@@ -1779,7 +2184,7 @@ function AnnotatedText({
           return (
             <span
               key={index}
-              onClick={(e) => onWordClick(vocabulary[vocabKey], e.currentTarget)}
+              onClick={(e) => onWordClick(vocabulary[vocabKey], e.currentTarget, text)}
               className="border-b border-dashed border-primary text-primary hover:text-primary/80 cursor-pointer transition-colors font-medium relative group px-0.5"
             >
               {part}
