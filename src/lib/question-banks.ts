@@ -44,7 +44,7 @@ export const banks: Bank[] = [
     id: "kaoyan-yi",
     category: "kaoyan",
     name: "考研英语一真题",
-    desc: "2010–2026 历年真题词汇 + 长难句",
+    desc: "2015–2026 历年真题词汇 + 长难句",
     total: 10,
     finished: 0,
     updated: "2026-07-10",
@@ -54,7 +54,7 @@ export const banks: Bank[] = [
     id: "kaoyan-er",
     category: "kaoyan",
     name: "考研英语二真题",
-    desc: "2010–2026 历年真题词汇 + 完形阅读",
+    desc: "2015–2026 历年真题词汇 + 完形阅读",
     total: 10,
     finished: 0,
     updated: "2026-07-05",
@@ -63,8 +63,8 @@ export const banks: Bank[] = [
   {
     id: "toefl-tpo",
     category: "toefl",
-    name: "TOEFL TPO 官方真题",
-    desc: "TPO 1–75 官方真题词汇题与同义替换",
+    name: "TOEFL 官方公开样题练习",
+    desc: "依据 ETS 公开样题题型整理的阅读、听力、口语与写作练习",
     total: 10,
     finished: 0,
     updated: "2026-06-30",
@@ -73,8 +73,8 @@ export const banks: Bank[] = [
   {
     id: "ielts-cambridge",
     category: "ielts",
-    name: "剑桥雅思真题 4–19",
-    desc: "官方雅思真题词汇 · 核心场景归类",
+    name: "IELTS 官方公开样题练习",
+    desc: "依据 IELTS 官方公开样题题型整理的听说读写练习",
     total: 10,
     finished: 0,
     updated: "2026-07-08",
@@ -794,7 +794,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：inevitable 意为“不可避免的”。托福阅读经典常考同义词，常与 unavoidable 进行同义替换。",
-      tag: "TOEFL TPO · 词汇题",
+      tag: "TOEFL 官方样题练习 · 词汇题",
     },
     {
       id: "toefl-2",
@@ -811,7 +811,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：advocate 意为“拥护，提倡”。等价于 support, promote。环保组织提倡减少一次性塑料制品。",
-      tag: "TOEFL TPO · 完形/词汇",
+      tag: "TOEFL 官方样题练习 · 完形/词汇",
     },
     {
       id: "toefl-3",
@@ -828,7 +828,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：conspicuous 意为“显眼的，惹人注目的”。等价于 noticeable, very obvious。常在托福进化生物学文章中考核。",
-      tag: "TOEFL TPO · 动物行为学",
+      tag: "TOEFL 官方样题练习 · 动物行为学",
     },
     {
       id: "toefl-4",
@@ -845,7 +845,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "B",
       explain:
         "正确答案 B：deplete 意为“枯竭，消耗，耗尽”。等价于 run out, exhaust。过度耕作会“耗尽”土壤肥力。",
-      tag: "TOEFL TPO · 农业生态学",
+      tag: "TOEFL 官方样题练习 · 农业生态学",
     },
     {
       id: "toefl-5",
@@ -862,7 +862,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "C",
       explain:
         "正确答案 C：accumulate 意为“积累，堆积”。等价于 collect, gather, build up。常见于地质学中泥沙堆积岩石形成的论述。",
-      tag: "TOEFL TPO · 地质学",
+      tag: "TOEFL 官方样题练习 · 地质学",
     },
     {
       id: "toefl-6",
@@ -879,7 +879,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：abundant 意为“丰富的，充裕的”。等价于 plentiful。雨季雨林为灵长类动物提供了“充足的”果实供应。",
-      tag: "TOEFL TPO · 生物地理",
+      tag: "TOEFL 官方样题练习 · 生物地理",
     },
     {
       id: "toefl-7",
@@ -896,7 +896,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：drastic 意为“剧烈的，极端的”。等价于 extreme, severe。小行星撞击引发了地球气候的“剧烈”变化。",
-      tag: "TOEFL TPO · 古生物学",
+      tag: "TOEFL 官方样题练习 · 古生物学",
     },
     {
       id: "toefl-8",
@@ -913,7 +913,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "C",
       explain:
         "正确答案 C：indispensable 意为“必不可少的，必需的”。等价于 essential。水分对于任何已知生命形式来说都是“不可或缺的”。",
-      tag: "TOEFL TPO · 基础科学",
+      tag: "TOEFL 官方样题练习 · 基础科学",
     },
     {
       id: "toefl-9",
@@ -930,7 +930,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：subsequent 意为“随后的，接下来的”。等价于 later, following。初始喷发较小，但“随后的”岩浆流造成了巨大破坏。",
-      tag: "TOEFL TPO · 地热环境",
+      tag: "TOEFL 官方样题练习 · 地热环境",
     },
     {
       id: "toefl-10",
@@ -947,7 +947,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：deviate 意为“背离，偏离”。等价于 turn aside, depart。迁徙的鸟类很少“偏离”其原定航线。",
-      tag: "TOEFL TPO · 动物行为学",
+      tag: "TOEFL 官方样题练习 · 动物行为学",
     },
   ],
   "ielts-cambridge": [
@@ -966,7 +966,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "C",
       explain:
         "正确答案 C：sustainable 意为“可持续的”。雅思核心环境议题词汇， sustainable practice 表示“可持续的实践运作”。",
-      tag: "剑桥雅思真题 · 城市生态",
+      tag: "IELTS 官方样题练习 · 城市生态",
     },
     {
       id: "ielts-2",
@@ -983,7 +983,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "B",
       explain:
         "正确答案 B：correlation 意为“相互关系，关联性”。 a clear correlation between A and B 意为“A和B之间清晰的关联”。",
-      tag: "剑桥雅思真题 · 科学研究",
+      tag: "IELTS 官方样题练习 · 科学研究",
     },
     {
       id: "ielts-3",
@@ -1000,7 +1000,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：enhance 意为“增强，提升，提高”。等同于 improve, boost。多媒体整合教学被证明可以“提升”学生的参与度。",
-      tag: "剑桥雅思真题 · 教育科技",
+      tag: "IELTS 官方样题练习 · 教育科技",
     },
     {
       id: "ielts-4",
@@ -1017,7 +1017,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "C",
       explain:
         "正确答案 C：demolish 意为“推倒，拆毁（建筑物等）”。雅思写作地图题（Map）中的超高频必背动词。拆除旧火车站，为现代高铁站让路。",
-      tag: "剑桥雅思真题 · 城市规划",
+      tag: "IELTS 官方样题练习 · 城市规划",
     },
     {
       id: "ielts-5",
@@ -1034,7 +1034,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "B",
       explain:
         "正确答案 B：detrimental 意为“有害的，不利的”。等价于 harmful, damaging。 have a detrimental effect on 意为“对……有极其不利的负面影响”，大作文提分神词。",
-      tag: "剑桥雅思真题 · 科技社会",
+      tag: "IELTS 官方样题练习 · 科技社会",
     },
     {
       id: "ielts-6",
@@ -1051,7 +1051,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：allocate 意为“分配，配置（资金、资源等）”。政府必须小心“调配”医疗和教育之间的预算与资源分布。",
-      tag: "剑桥雅思真题 · 政府职能",
+      tag: "IELTS 官方样题练习 · 政府职能",
     },
     {
       id: "ielts-7",
@@ -1068,7 +1068,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：bias 意为“偏见，偏差”。由于抽样方法倾向于高收入家庭，研究因此被批评含有严重的“偏向、偏差”。",
-      tag: "剑桥雅思真题 · 社会学研究",
+      tag: "IELTS 官方样题练习 · 社会学研究",
     },
     {
       id: "ielts-8",
@@ -1085,7 +1085,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "B",
       explain:
         "正确答案 B：discrepancy 意为“不一致，差异”。等价于 inconsistency, difference。审计人员发现了报税收益与实际银行流水之间的巨大“出入”。",
-      tag: "剑桥雅思真题 · 商业审查",
+      tag: "IELTS 官方样题练习 · 商业审查",
     },
     {
       id: "ielts-9",
@@ -1102,7 +1102,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：feasible 意为“可行的，可操作的”。 feasibility study 意为“可行性研究”，用来探讨一个大型项目在技术上是否“行得通”。",
-      tag: "剑桥雅思真题 · 工程建造",
+      tag: "IELTS 官方样题练习 · 工程建造",
     },
     {
       id: "ielts-10",
@@ -1119,7 +1119,7 @@ const REAL_QUESTIONS: Record<string, Question[]> = {
       answer: "A",
       explain:
         "正确答案 A：prevalent 意为“盛行的，普遍的”。等同于 widespread, common。在缺乏卫生设施和清洁饮水的地区，水源性疾病极其“盛行”。",
-      tag: "剑桥雅思真题 · 公共卫生",
+      tag: "IELTS 官方样题练习 · 公共卫生",
     },
   ],
 };

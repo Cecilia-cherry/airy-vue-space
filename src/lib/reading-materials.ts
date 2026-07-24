@@ -40,7 +40,7 @@ export interface ReadingMaterial {
   referenceAnswer?: string; // for writing/translation reference
 }
 
-// Map of category + sectionIndex to high-fidelity mock materials
+// Map of category + sectionIndex to structured practice materials
 const PRESETS: Record<string, ReadingMaterial> = {
   // ==================== KAOYAN (考研英语) ====================
   kaoyan_0: {
@@ -1218,7 +1218,7 @@ const PRESETS: Record<string, ReadingMaterial> = {
       "Personally, I strongly prefer universities where class attendance is completely optional. My primary reason is that optional attendance fosters a high level of self-discipline. College students are adults and they should learn how to manage their schedules and priorities independently. Furthermore, optional attendance allows for greater learning efficiency. For instance, if a student can grasp a textbook concept much faster on their own, they can use class time to do internships or research instead of sitting through redundant lectures. Thus, optional attendance promotes personal freedom and academic efficiency.",
   },
   toefl_5: {
-    title: "学术写作表达 (含 AI 批改)",
+    title: "学术写作表达 (含详细批改)",
     type: "writing",
     paragraphs: [],
     vocabulary: {},
@@ -1329,7 +1329,7 @@ const PRESETS: Record<string, ReadingMaterial> = {
     ],
   },
   ielts_3: {
-    title: "图表学术写作 (含 AI 批改)",
+    title: "图表学术写作 (含详细批改)",
     type: "writing",
     paragraphs: [],
     vocabulary: {},
@@ -1340,7 +1340,7 @@ const PRESETS: Record<string, ReadingMaterial> = {
       "The bar chart illustrates the average amount of water consumed daily by an individual in London, Beijing, and New York from 2000 to 2025. \n\nOverall, New York recorded the highest daily water usage per capita throughout the entire period, whereas Beijing residents consistently consumed the least. \n\nIn detail, in the year 2000, New Yorkers used approximately 350 liters of water daily, which gradually declined to 300 liters by 2025. Despite this downward trend, New York's consumption remained significantly higher than the other two cities. In contrast, water usage in London started at 240 liters in 2000 and remained relatively stable, fluctuating slightly around 220 liters over the twenty-five-year timeframe. \n\nMeanwhile, Beijing residents used only 80 liters of water per day in 2000. However, this figure experienced a continuous increase, reaching 150 liters by 2025. This indicates a growing household demand in Beijing, contrasting with the conservation efforts seen in New York.",
   },
   ielts_4: {
-    title: "议论文写作 (含 AI 批改)",
+    title: "议论文写作 (含详细批改)",
     type: "writing",
     paragraphs: [],
     vocabulary: {},

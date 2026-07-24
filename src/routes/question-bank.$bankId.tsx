@@ -1,11 +1,21 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getBank, getQuestions, loadFavorites, saveFavorites } from "@/lib/question-banks";
 import { getReadingMaterial, type ReadingWord } from "@/lib/reading-materials";
-import type { ExplainerResult } from "@/lib/explainer";
-import { lookupWord, loadFavoriteWords, toggleWordFavorite } from "@/lib/dictionary";
+import {
+  buildLocalQuestionExplanation,
+  type LocalExplainerResult,
+} from "@/lib/local-explainer";
+import {
+  lookupWord,
+  lookupWordDetails,
+  loadFavoriteWords,
+  toggleWordFavorite,
+  type WordLookupDetails,
+} from "@/lib/dictionary";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -29,6 +39,7 @@ import {
   Check,
   Headphones,
   Cat,
+  Eraser,
 } from "lucide-react";
 
 export const Route = createFileRoute("/question-bank/$bankId")({
@@ -41,8 +52,8 @@ export const Route = createFileRoute("/question-bank/$bankId")({
     meta: [
       {
         title: loaderData
-          ? `${loaderData.bank.name} · 真题刷题 · WordMaster`
-          : "真题刷题 · WordMaster",
+          ? `${loaderData.bank.name} · 刷题练习 · WordMaster`
+          : "刷题练习 · WordMaster",
       },
       {
         name: "description",
@@ -79,9 +90,9 @@ const BANK_SECTIONS: Record<string, string[]> = {
     "阅读理解 Text 4",
     "新题型 (模拟训练)",
     "完形填空 (词汇运用)",
-    "英译汉翻译 (含 AI 批改)",
-    "应用文小作文 (含 AI 批改)",
-    "图表/图画大作文 (含 AI 批改)",
+    "英译汉翻译 (含详细批改)",
+    "应用文小作文 (含详细批改)",
+    "图表/图画大作文 (含详细批改)",
   ],
   gaokao: [
     "听力专项理解",
@@ -90,7 +101,7 @@ const BANK_SECTIONS: Record<string, string[]> = {
     "七选五阅读填空",
     "完形填空精练",
     "语法填空精析",
-    "书面表达与作文 (含 AI 批改)",
+    "书面表达与作文 (含详细批改)",
   ],
   zhongkao: [
     "单项选择突破",
@@ -99,7 +110,7 @@ const BANK_SECTIONS: Record<string, string[]> = {
     "阅读理解 Text B",
     "词汇分类运用",
     "语法填空填空",
-    "话题书面表达 (含 AI 批改)",
+    "话题书面表达 (含详细批改)",
   ],
   toefl: [
     "学术阅读单选",
@@ -107,14 +118,14 @@ const BANK_SECTIONS: Record<string, string[]> = {
     "语境词义辨析",
     "学术听力单选",
     "独立口语表达",
-    "学术写作表达 (含 AI 批改)",
+    "学术写作表达 (含详细批改)",
   ],
   ielts: [
     "生活核心场景词汇",
     "高频学术词汇运用",
     "学术阅读 (匹配题)",
-    "图表学术写作 (含 AI 批改)",
-    "议论文写作 (含 AI 批改)",
+    "图表学术写作 (含详细批改)",
+    "议论文写作 (含详细批改)",
     "口语现场模拟",
   ],
 };
@@ -179,6 +190,19 @@ function BankDetail() {
     bank: NonNullable<ReturnType<typeof getBank>>;
     questions: ReturnType<typeof getQuestions>;
   };
+  const isOfficialSampleBank = bank.category === "toefl" || bank.category === "ielts";
+  const sourceInfo =
+    bank.category === "toefl"
+      ? {
+          label: "ETS TOEFL 官方备考资源",
+          url: "https://www.ets.org/toefl/test-takers/ibt/prepare/practice-tests.html",
+        }
+      : bank.category === "ielts"
+        ? {
+            label: "IELTS 官方样题资源",
+            url: "https://ielts.org/take-a-test/preparation-resources/sample-test-questions",
+          }
+        : null;
 
   // Generate dynamic years/volumes based on category
   const availableYears = useMemo(() => {
@@ -189,10 +213,10 @@ function BankDetail() {
       return Array.from({ length: 9 }, (_, i) => `${2026 - i}年真题`);
     }
     if (bank.category === "toefl") {
-      return Array.from({ length: 16 }, (_, i) => `TPO ${75 - i}`);
+      return ["官方公开样题", "学术阅读练习", "听力与口语练习"];
     }
     if (bank.category === "ielts") {
-      return Array.from({ length: 10 }, (_, i) => `剑桥 ${19 - i}`);
+      return ["官方公开样题", "学术类练习", "通用类练习"];
     }
     return ["2026年真题", "2025年真题", "2024年真题"];
   }, [bank.category]);
@@ -202,6 +226,7 @@ function BankDetail() {
 
   // Favorites & Answered States
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [favoriteSections, setFavoriteSections] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [favoriteWords, setFavoriteWords] = useState<string[]>([]);
 
@@ -209,7 +234,7 @@ function BankDetail() {
   const [writingInputs, setWritingInputs] = useState<Record<string, string>>({});
   const [isAnalyzing, setIsAnalyzing] = useState<Record<string, boolean>>({});
   const [analysisResults, setAnalysisResults] = useState<
-    Record<string, { score: number; comment: string; suggestions: string[] }>
+    Record<string, { score: number; comment: string; suggestions: string[]; highlights: string[] }>
   >({});
 
   // Modal State
@@ -218,15 +243,7 @@ function BankDetail() {
   // Split-screen learning workstation states
   const [activeMode, setActiveMode] = useState<"analyze" | "answer">("answer");
   const [selectedLookupWord, setSelectedLookupWord] = useState<ReadingWord | null>(null);
-  const [aiTranslation, setAiTranslation] = useState<{
-    word: string;
-    phonetic: string;
-    commonDefinitions: string[];
-    contextDefinition: string;
-    example: string;
-    exampleTranslation: string;
-  } | null>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
+  const [lookupDetails, setLookupDetails] = useState<WordLookupDetails | null>(null);
   const [lookupCoords, setLookupCoords] = useState<{
     top: number;
     left: number;
@@ -239,28 +256,119 @@ function BankDetail() {
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
   const [showTranslationBanner, setShowTranslationBanner] = useState<boolean>(true);
   const [explanationOpen, setExplanationOpen] = useState<Record<string, boolean>>({});
-  const [aiExplanations, setAiExplanations] = useState<Record<string, ExplainerResult>>({});
-  const [loadingExplanations, setLoadingExplanations] = useState<Record<string, boolean>>({});
+  const [questionExplanations, setQuestionExplanations] = useState<
+    Record<string, LocalExplainerResult>
+  >({});
   const [pendingAnswers, setPendingAnswers] = useState<Record<string, string>>({});
 
   // Simulated audio player states
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
   const [audioProgress, setAudioProgress] = useState<number>(15);
   const [audioSpeed, setAudioSpeed] = useState<number>(1.0);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [isInkMode, setIsInkMode] = useState(false);
+  const [isErasing, setIsErasing] = useState(false);
+  const [eraserSize, setEraserSize] = useState(24);
+  const passageCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const passageCardRef = useRef<HTMLDivElement | null>(null);
+  const isDrawingRef = useRef(false);
 
   // Reset workstation state when active section changes
   useEffect(() => {
     setActiveMode("answer");
     setSelectedLookupWord(null);
+    setLookupDetails(null);
     setLookupCoords(null);
     setParagraphTranslationsRevealed({});
     setActiveQuestionIndex(0);
     setIsPlayingAudio(false);
     setAudioProgress(15);
     setExplanationOpen({});
-    setAiExplanations({});
-    setLoadingExplanations({});
+    setQuestionExplanations({});
+    setIsInkMode(false);
+    setIsErasing(false);
+    setIsDrawing(false);
+    isDrawingRef.current = false;
   }, [selectedSectionIndex]);
+
+  useEffect(() => {
+    const syncCanvasSize = () => {
+      const canvas = passageCanvasRef.current;
+      const container = passageCardRef.current;
+      if (!canvas || !container) return;
+
+      const bounds = container.getBoundingClientRect();
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = Math.round(bounds.width * scale);
+      canvas.height = Math.round(bounds.height * scale);
+      canvas.style.width = `${bounds.width}px`;
+      canvas.style.height = `${bounds.height}px`;
+      const context = canvas.getContext("2d");
+      context?.setTransform(scale, 0, 0, scale, 0, 0);
+      if (context) {
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.strokeStyle = "rgba(58, 139, 118, 0.72)";
+        context.lineWidth = 2.5;
+      }
+    };
+
+    syncCanvasSize();
+    const observer = new ResizeObserver(syncCanvasSize);
+    if (passageCardRef.current) observer.observe(passageCardRef.current);
+    return () => observer.disconnect();
+  }, [selectedSectionIndex]);
+
+  const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
+  const startInk = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isInkMode) return;
+    const context = passageCanvasRef.current?.getContext("2d");
+    if (!context) return;
+    const { x, y } = getCanvasPoint(event);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    context.globalCompositeOperation = isErasing ? "destination-out" : "source-over";
+    context.lineWidth = isErasing ? eraserSize : 2.5;
+    context.beginPath();
+    context.moveTo(x, y);
+    // Draw a visible dot for taps; dragging continues the same stroke below.
+    context.arc(x, y, isErasing ? eraserSize / 2 : 0.8, 0, Math.PI * 2);
+    context.fillStyle = isErasing ? "rgba(0,0,0,1)" : "rgba(58, 139, 118, 0.72)";
+    context.fill();
+    context.beginPath();
+    context.moveTo(x, y);
+    isDrawingRef.current = true;
+    setIsDrawing(true);
+  };
+
+  const drawInk = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isInkMode || !isDrawingRef.current) return;
+    const context = passageCanvasRef.current?.getContext("2d");
+    if (!context) return;
+    context.globalCompositeOperation = isErasing ? "destination-out" : "source-over";
+    context.lineWidth = isErasing ? eraserSize : 2.5;
+    const { x, y } = getCanvasPoint(event);
+    context.lineTo(x, y);
+    context.stroke();
+  };
+
+  const finishInk = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    isDrawingRef.current = false;
+    setIsDrawing(false);
+  };
+
+  const clearInk = () => {
+    const canvas = passageCanvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
+  };
 
   // Audio progress tick simulation
   useEffect(() => {
@@ -283,6 +391,12 @@ function BankDetail() {
   useEffect(() => {
     setFavorites(loadFavorites());
     setFavoriteWords(loadFavoriteWords().map((w) => w.word.toLowerCase()));
+    try {
+      const savedSections = window.localStorage.getItem("wm.favoriteSections");
+      setFavoriteSections(new Set(savedSections ? JSON.parse(savedSections) : []));
+    } catch {
+      setFavoriteSections(new Set());
+    }
 
     const savedRevealed = localStorage.getItem(`revealed_${bank.id}`);
     if (savedRevealed) {
@@ -311,6 +425,21 @@ function BankDetail() {
       }
     }
   }, [bank.id]);
+
+  const toggleSectionFavorite = () => {
+    if (selectedSectionIndex === null) return;
+    const sectionKey = `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}`;
+    setFavoriteSections((previous) => {
+      const next = new Set(previous);
+      const isAdded = !next.has(sectionKey);
+      if (isAdded) next.add(sectionKey);
+      else next.delete(sectionKey);
+      window.localStorage.setItem("wm.favoriteSections", JSON.stringify([...next]));
+      if (isAdded) toast.success("已收藏本卷");
+      else toast("已取消收藏本卷");
+      return next;
+    });
+  };
 
   const saveProgress = (nextRevealed: Record<string, string>) => {
     localStorage.setItem(`revealed_${bank.id}`, JSON.stringify(nextRevealed));
@@ -441,7 +570,13 @@ function BankDetail() {
 
   const handleToggleWordFav = (wordObj: ReadingWord) => {
     const added = toggleWordFavorite(wordObj);
-    setFavoriteWords(loadFavoriteWords().map((w) => w.word.toLowerCase()));
+    const normalizedWord = wordObj.word.trim().toLowerCase();
+    // Update the visible state from the confirmed toggle result instead of waiting for storage reload.
+    setFavoriteWords((previous) =>
+      added
+        ? Array.from(new Set([...previous, normalizedWord]))
+        : previous.filter((word) => word !== normalizedWord),
+    );
     if (added) {
       toast.success(`生词 "${wordObj.word}" 已成功收藏到错题生词本！`);
     } else {
@@ -449,72 +584,45 @@ function BankDetail() {
     }
   };
 
-  const fetchDetailedExplanation = async (
+  const ensureQuestionExplanation = (
     targetQId: string,
     currentQ: {
       stem: string;
       options: { key: string; text: string }[];
       answer: string;
       explain: string;
+      type: string;
+      id: string;
     },
   ) => {
-    if (aiExplanations[targetQId] || loadingExplanations[targetQId]) return;
-
-    setLoadingExplanations((prev) => ({ ...prev, [targetQId]: true }));
-    try {
-      const passageText =
-        sectionMaterial?.paragraphs?.map((p: { text: string }) => p.text).join("\n") || "";
-      const { getDetailedExplanation } = await import("@/lib/explainer");
-      const result = await getDetailedExplanation({
-        data: {
-          passage: passageText,
-          questionStem: currentQ.stem,
-          options: currentQ.options,
-          correctAnswer: currentQ.answer,
-          originalExplanation: currentQ.explain,
-        },
-      });
-      setAiExplanations((prev) => ({ ...prev, [targetQId]: result }));
-    } catch (error) {
-      console.error("Failed to fetch detailed explanation:", error);
-      toast.error("获取AI深度解析失败，请稍后重试");
-    } finally {
-      setLoadingExplanations((prev) => ({ ...prev, [targetQId]: false }));
-    }
+    if (!sectionMaterial || questionExplanations[targetQId]) return;
+    setQuestionExplanations((prev) => ({
+      ...prev,
+      [targetQId]: buildLocalQuestionExplanation(sectionMaterial, currentQ),
+    }));
   };
 
-  const handleWordClick = (wordObj: ReadingWord, element: HTMLElement, contextText?: string) => {
-    setSelectedLookupWord(wordObj);
-    const rect = element.getBoundingClientRect();
-    const scrollY = window.scrollY;
-    const scrollX = window.scrollX;
+  const handleWordClick = (rawWord: string, element: HTMLElement, contextText?: string) => {
+    const resolvedWord = lookupWord(rawWord, sectionMaterial?.vocabulary);
+    setSelectedLookupWord(resolvedWord);
+    setLookupDetails(lookupWordDetails(rawWord, sectionMaterial?.vocabulary, contextText));
+    // Keep lookup available even if a future caller does not provide a DOM target.
+    const rect = element?.getBoundingClientRect?.();
+    if (!rect) {
+      setLookupCoords({
+        top: Math.max(16, window.innerHeight / 2 - 160),
+        left: window.innerWidth / 2,
+        height: 0,
+        width: 0,
+      });
+      return;
+    }
     setLookupCoords({
-      top: rect.top + scrollY,
-      left: rect.left + scrollX,
+      top: rect.top,
+      left: rect.left,
       height: rect.height,
       width: rect.width,
     });
-
-    setAiTranslation(null);
-    setIsTranslating(true);
-
-    const cleanWord = wordObj.word.trim();
-    import("@/lib/translator")
-      .then(({ translateWord }) => {
-        translateWord({ data: { word: cleanWord, context: contextText } })
-          .then((result) => {
-            setAiTranslation(result);
-            setIsTranslating(false);
-          })
-          .catch((err) => {
-            console.error("Failed to translate word with Gemini:", err);
-            setIsTranslating(false);
-          });
-      })
-      .catch((err) => {
-        console.error("Failed to load translator module:", err);
-        setIsTranslating(false);
-      });
   };
 
   const handlePronounce = (text: string) => {
@@ -543,7 +651,7 @@ function BankDetail() {
     }
   };
 
-  const handleAICorrection = (qId: string, userText: string, stem: string) => {
+  const handleLocalCorrection = (qId: string, userText: string, stem: string) => {
     if (!userText.trim()) {
       toast.error("请输入较完整的解答/文章后再进行批改。");
       return;
@@ -556,6 +664,7 @@ function BankDetail() {
       let score = 88;
       let comment = "";
       let suggestions: string[] = [];
+      let highlights: string[] = [];
 
       if (length < 15) {
         score = 65;
@@ -564,6 +673,10 @@ function BankDetail() {
           "建议增加句子长度，多利用逻辑衔接词（如 moreover, strictly speaking, on the flip side）等扩展成分。",
           "丰富同义词替换，避免高频词汇（如 write, do, good）的不断重复。",
           "注意中英表意习惯的不同，避免中式英语逐字生硬直译。",
+        ];
+        highlights = [
+          `任务完成度：当前约 ${length} 词，离完整展开题目要求还有距离。`,
+          `内容定位：请围绕题干 "${stem.slice(0, 24)}..." 至少补足 2 个具体信息点。`,
         ];
       } else if (length < 40) {
         score = 83;
@@ -574,6 +687,10 @@ function BankDetail() {
           "部分学术连词的衔接可以更加丝滑，避免转折逻辑显得突兀。",
           "多注意名词单复数和介词的前后呼应，进一步润色细节。",
         ];
+        highlights = [
+          "结构定位：开头已回应题目，但中段论证还可以再补一个具体例子。",
+          "语言定位：表达整体顺畅，下一步可以强化句间衔接和替换重复词。",
+        ];
       } else {
         score = 95;
         comment = "极其优秀！用词高端、自然且句式多变，逻辑脉络流畅，基本无低级语法与拼写错误。";
@@ -582,9 +699,13 @@ function BankDetail() {
           "拼写、时态和标点极其规范，已达到考场高分示范作文的标杆水平。",
           "如果想追求完美，可以尝试将段落的主题词提炼得更具文学渲染力。",
         ];
+        highlights = [
+          "结构定位：开头立场、中段展开、结尾收束比较完整，篇章框架成熟。",
+          "语言定位：句式变化和搭配表现较强，已经接近高分示范答案风格。",
+        ];
       }
 
-      const newAnalysis = { ...analysisResults, [qId]: { score, comment, suggestions } };
+      const newAnalysis = { ...analysisResults, [qId]: { score, comment, suggestions, highlights } };
       setAnalysisResults(newAnalysis);
       localStorage.setItem(`analysis_${bank.id}`, JSON.stringify(newAnalysis));
 
@@ -593,7 +714,7 @@ function BankDetail() {
       saveProgress(nextRevealed);
 
       setIsAnalyzing((prev) => ({ ...prev, [qId]: false }));
-      toast.success("AI 智能阅卷批改完毕！已为您解锁详细优化分析报告");
+      toast.success("详细批改已完成！已为你生成本地评估与优化建议。");
     }, 1500);
   };
 
@@ -638,15 +759,29 @@ function BankDetail() {
           <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                历年真题库 · {bank.id.toUpperCase()}
+                {isOfficialSampleBank
+                  ? "官方公开样题练习"
+                  : "历年真题库"} · {bank.id.toUpperCase()}
               </span>
               <h1 className="mt-3 font-display text-3xl md:text-4xl text-ink font-semibold">
                 {bank.name}
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-                {bank.desc}。每道模块题目均来自官方考试卷库，提供考纲深度词汇分析、语法拆解与 AI
-                智能英语阅卷。
+                {bank.desc}。
+                {isOfficialSampleBank
+                  ? " 本题库按官方公开样题的题型与能力要求整理，题目为学习练习，不标注为官方原卷。"
+                  : " 每道模块题目均提供词汇分析、语法拆解与详细作答批改。"}
               </p>
+              {sourceInfo && (
+                <a
+                  href={sourceInfo.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex text-xs font-semibold text-primary hover:underline"
+                >
+                  参考来源：{sourceInfo.label}
+                </a>
+              )}
             </div>
 
             {/* Overall Stats Widget */}
@@ -688,8 +823,10 @@ function BankDetail() {
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border/60 pt-4">
             <div className="flex flex-wrap items-center gap-6 text-xs text-ink-soft font-mono">
               <span>
-                真题目录年份:{" "}
-                <strong className="text-ink font-semibold">{availableYears.length} 个版本</strong>
+                {isOfficialSampleBank ? "练习模块" : "真题目录年份"}:{" "}
+                <strong className="text-ink font-semibold">
+                  {availableYears.length} {isOfficialSampleBank ? "组" : "个版本"}
+                </strong>
               </span>
               <span>
                 每卷模块数:{" "}
@@ -702,7 +839,7 @@ function BankDetail() {
                 className="inline-flex items-center gap-1.5 text-xs text-ink-soft hover:text-destructive transition cursor-pointer"
               >
                 <RotateCcw className="h-3 w-3" />
-                重置真题刷题记录
+                重置刷题记录
               </button>
             )}
           </div>
@@ -715,14 +852,14 @@ function BankDetail() {
               <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider flex items-center gap-1.5">
                 <Filter className="h-3.5 w-3.5 text-primary" />
                 <span>
-                  {bank.category === "toefl" || bank.category === "ielts" ? "真题版本" : "真题年份"}
+                  {isOfficialSampleBank ? "专项练习" : "真题年份"}
                 </span>
               </span>
               <button
                 onClick={() => setShowBrushTip(true)}
                 className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <span>必读：真题应该怎么刷？</span>
+                <span>必读：本题库应该怎么刷？</span>
                 <ChevronRight className="h-3 w-3" />
               </button>
             </div>
@@ -768,7 +905,7 @@ function BankDetail() {
           <div className="mt-8 space-y-4">
             <div className="flex items-center justify-between px-1">
               <h2 className="font-display text-lg text-ink font-semibold flex items-center gap-2">
-                <span>{selectedYear} 核心真题大纲</span>
+                <span>{selectedYear} 核心练习大纲</span>
                 <span className="text-xs font-mono font-normal text-ink-soft bg-muted px-2.5 py-0.5 rounded-full border border-border/40">
                   当前卷已完成 {completedSectionsInYear} / {sections.length} 模块
                 </span>
@@ -881,7 +1018,10 @@ function BankDetail() {
                 </div>
 
                 {/* Right Tool Icons */}
+                <TooltipProvider delayDuration={180}>
                 <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
                   <button
                     onClick={() => {
                       if (sectionMaterial.type === "listening") {
@@ -891,19 +1031,70 @@ function BankDetail() {
                       }
                     }}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-ink-soft hover:bg-muted hover:text-ink transition cursor-pointer"
-                    title={sectionMaterial.type === "listening" ? "播放音频" : "手写模式"}
                   >
                     <Headphones
                       className={`h-4.5 w-4.5 ${isPlayingAudio ? "text-primary animate-pulse" : ""}`}
                     />
                   </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{sectionMaterial.type === "listening" ? "播放音频" : "听力工具"}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
                   <button
-                    onClick={() => toast("点击划词：双击任意单词或句子，即可触发 AI 深度句法分析")}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-ink-soft hover:bg-muted hover:text-ink transition cursor-pointer"
-                    title="高亮划线"
+                    onClick={() => {
+                      setIsErasing(false);
+                      setIsInkMode((enabled) => !enabled);
+                      toast(isInkMode ? "已退出划词模式" : "划词模式已开启：可用鼠标、手指或触控笔在文章上标记");
+                    }}
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition cursor-pointer ${
+                      isInkMode
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border bg-card text-ink-soft hover:bg-muted hover:text-ink"
+                    }`}
                   >
                     <PenTool className="h-4.5 w-4.5" />
                   </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{isInkMode ? "退出划词" : "划词标记"}</TooltipContent>
+                  </Tooltip>
+                  {isInkMode && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => {
+                            setIsInkMode(true);
+                            setIsErasing((enabled) => !enabled);
+                          }}
+                          className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition cursor-pointer ${
+                            isErasing
+                              ? "border-amber-400 bg-amber-100 text-amber-700 shadow-sm"
+                              : "border-border bg-card text-ink-soft hover:bg-muted hover:text-ink"
+                          }`}
+                        >
+                          <Eraser className="h-4.5 w-4.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>{isErasing ? "退出橡皮擦" : "橡皮擦"}</TooltipContent>
+                    </Tooltip>
+                  )}
+                  {isInkMode && isErasing && (
+                    <label className="inline-flex h-9 items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 text-[11px] font-semibold text-amber-800">
+                      擦除
+                      <select
+                        value={eraserSize}
+                        onChange={(event) => setEraserSize(Number(event.target.value))}
+                        className="cursor-pointer bg-transparent text-[11px] outline-none"
+                        aria-label="橡皮擦大小"
+                      >
+                        <option value={12}>小</option>
+                        <option value={24}>中</option>
+                        <option value={40}>大</option>
+                      </select>
+                    </label>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
                   <button
                     onClick={() => {
                       // Reveal all paragraph translations
@@ -919,18 +1110,54 @@ function BankDetail() {
                       );
                     }}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-ink-soft hover:bg-muted hover:text-ink transition cursor-pointer"
-                    title="一键全文翻译"
                   >
                     <Languages className="h-4.5 w-4.5" />
                   </button>
+                    </TooltipTrigger>
+                    <TooltipContent>显示全文翻译</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
                   <button
-                    onClick={() => toast.success("本卷全部错题及笔记已同步至「我的错题」笔记本内")}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-ink-soft hover:bg-muted hover:text-ink transition cursor-pointer"
-                    title="收藏本卷"
+                    onClick={toggleSectionFavorite}
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition cursor-pointer ${
+                      selectedSectionIndex !== null &&
+                      favoriteSections.has(
+                        `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}`,
+                      )
+                        ? "border-amber-300 bg-amber-100 text-amber-500"
+                        : "border-border bg-card text-ink-soft hover:bg-muted hover:text-ink"
+                    }`}
                   >
-                    <Star className="h-4.5 w-4.5" />
+                    <Star
+                      className={`h-4.5 w-4.5 ${
+                        selectedSectionIndex !== null &&
+                        favoriteSections.has(
+                          `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}`,
+                        )
+                          ? "fill-current"
+                          : ""
+                      }`}
+                    />
                   </button>
+                    </TooltipTrigger>
+                    <TooltipContent>收藏本卷</TooltipContent>
+                  </Tooltip>
+                  {isInkMode && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={clearInk}
+                          className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-card px-2 text-xs font-semibold text-ink-soft hover:bg-muted hover:text-ink transition cursor-pointer"
+                        >
+                          清除
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>清除当前标记</TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
+                </TooltipProvider>
               </div>
 
               {/* Hand writing lookup notice banner */}
@@ -971,7 +1198,7 @@ function BankDetail() {
                         <div className="flex-1 space-y-1">
                           <h4 className="text-sm font-semibold text-ink">听力材料音频播报</h4>
                           <p className="text-xs text-ink-soft">
-                            真题配音 · 英美籍专业播音员朗读 ({audioSpeed}x 倍速)
+                            {isOfficialSampleBank ? "样题练习配音" : "真题配音"} · 英美籍专业播音员朗读 ({audioSpeed}x 倍速)
                           </p>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -1027,8 +1254,13 @@ function BankDetail() {
                     </div>
                   )}
 
-                  {/* Reading Passage/Article */}
-                  <div className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-soft space-y-6">
+                  {/* Original passage and questions remain visible in both learning modes. */}
+                  <div
+                    ref={passageCardRef}
+                    className={`relative rounded-3xl border border-border bg-card p-6 md:p-8 shadow-soft space-y-6 ${
+                      isInkMode ? "select-none" : ""
+                    }`}
+                  >
                     {sectionMaterial.paragraphs && sectionMaterial.paragraphs.length > 0 ? (
                       sectionMaterial.paragraphs.map((p, pIdx) => (
                         <div key={p.pId} className="space-y-3 group">
@@ -1045,8 +1277,8 @@ function BankDetail() {
                             <AnnotatedText
                               text={p.text}
                               vocabulary={sectionMaterial.vocabulary}
-                              onWordClick={(wordObj, el, contextText) =>
-                                handleWordClick(wordObj, el, contextText)
+                              onWordClick={(rawWord, element, contextText) =>
+                                handleWordClick(rawWord, element, contextText)
                               }
                               activeMode={activeMode}
                             />
@@ -1092,7 +1324,7 @@ function BankDetail() {
                     ) : (
                       <div className="py-12 text-center text-ink-soft">
                         <BookOpen className="h-10 w-10 text-muted mx-auto mb-3" />
-                        <p>本真题卷无长文阅读材料，请直接查看右侧题干进行练习。</p>
+                        <p>本练习模块无长文阅读材料，请直接查看右侧题干进行练习。</p>
                       </div>
                     )}
 
@@ -1103,7 +1335,7 @@ function BankDetail() {
                         <div className="border-t border-border pt-6 mt-8 space-y-4">
                           <h4 className="text-sm font-semibold text-ink flex items-center gap-2">
                             <Sparkles className="h-4.5 w-4.5 text-primary animate-pulse" />
-                            <span>本篇精选真题长难句深度分析</span>
+                            <span>本篇材料长难句深度分析</span>
                           </h4>
 
                           <div className="space-y-4">
@@ -1127,6 +1359,17 @@ function BankDetail() {
                           </div>
                         </div>
                       )}
+                    <canvas
+                      ref={passageCanvasRef}
+                      onPointerDown={startInk}
+                      onPointerMove={drawInk}
+                      onPointerUp={finishInk}
+                      onPointerCancel={finishInk}
+                      className={`absolute inset-0 z-20 rounded-3xl touch-none ${
+                        isInkMode ? "cursor-crosshair pointer-events-auto" : "pointer-events-none"
+                      }`}
+                      aria-label="文章划词标记画布"
+                    />
                   </div>
 
                   {/* Vocabulary Word Lookup is now handled as a floating popover at the page root */}
@@ -1260,14 +1503,14 @@ function BankDetail() {
                                       [qId]: nextOpen,
                                     }));
                                     if (nextOpen) {
-                                      fetchDetailedExplanation(qId, q);
+                                      ensureQuestionExplanation(qId, q);
                                     }
                                   }}
                                   className="flex w-full items-center justify-between gap-2 text-xs font-bold text-primary cursor-pointer"
                                 >
                                   <span className="flex items-center gap-1.5">
                                     <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
-                                    <span>AI 官方深度解析与原文出处</span>
+                                    <span>详细解析与原文定位</span>
                                   </span>
                                   <span className="text-[11px] font-medium text-primary/80 bg-primary/10 px-2 py-0.5 rounded-full">
                                     {explanationOpen[qId] ? "收起解析" : "点击展开详细解析"}
@@ -1276,14 +1519,7 @@ function BankDetail() {
 
                                 {explanationOpen[qId] && (
                                   <div className="pt-3 border-t border-primary/10 space-y-4 text-xs leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
-                                    {loadingExplanations[qId] ? (
-                                      <div className="flex flex-col items-center justify-center py-6 space-y-2 text-center text-primary/70">
-                                        <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                        <p className="text-[11px] font-medium">
-                                          正在为您智能剖析考题、精确定位原文出处中...
-                                        </p>
-                                      </div>
-                                    ) : aiExplanations[qId] ? (
+                                    {questionExplanations[qId] ? (
                                       <div className="space-y-4">
                                         {/* 1. 原文出处定位 */}
                                         <div className="rounded-xl bg-background/50 border border-emerald-500/10 p-3.5 space-y-2">
@@ -1293,34 +1529,30 @@ function BankDetail() {
                                               <span>原文定位与出处</span>
                                             </span>
                                             <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-0.5 rounded-md">
-                                              {aiExplanations[qId].sourceLocation}
+                                              {questionExplanations[qId].sourceLocation}
                                             </span>
                                           </div>
                                           <p className="font-serif italic text-ink text-[12px] leading-relaxed pl-2.5 border-l-2 border-emerald-500">
-                                            "{aiExplanations[qId].sourceQuote}"
+                                            "{questionExplanations[qId].sourceQuote}"
                                           </p>
                                           <p className="text-ink-soft text-[11px] pl-2.5">
-                                            {aiExplanations[qId].sourceQuoteTranslation}
+                                            {questionExplanations[qId].sourceQuoteTranslation}
                                           </p>
                                         </div>
 
                                         {/* 2. 深度思路指引 */}
                                         <div className="space-y-1">
-                                          <h5 className="text-[11px] font-bold text-primary">
-                                            💡 深度解题思路
-                                          </h5>
+                                          <h5 className="text-[11px] font-bold text-primary">深度解题思路</h5>
                                           <p className="text-ink-soft leading-relaxed pl-1 text-[11px]">
-                                            {aiExplanations[qId].detailedExplanation}
+                                            {questionExplanations[qId].detailedExplanation}
                                           </p>
                                         </div>
 
                                         {/* 3. 选项逐一剖析 */}
                                         <div className="space-y-2">
-                                          <h5 className="text-[11px] font-bold text-primary">
-                                            🔍 选项逐一分析
-                                          </h5>
+                                          <h5 className="text-[11px] font-bold text-primary">选项逐一分析</h5>
                                           <div className="grid gap-2">
-                                            {aiExplanations[qId].optionAnalysis?.map((optAn) => (
+                                            {questionExplanations[qId].optionAnalysis.map((optAn) => (
                                               <div
                                                 key={optAn.key}
                                                 className={`rounded-lg p-2.5 border text-[11px] leading-relaxed ${
@@ -1358,14 +1590,11 @@ function BankDetail() {
                                         </div>
 
                                         {/* 4. 核心词汇提炼 */}
-                                        {aiExplanations[qId].keyVocabulary &&
-                                          aiExplanations[qId].keyVocabulary.length > 0 && (
+                                        {questionExplanations[qId].keyVocabulary.length > 0 && (
                                             <div className="space-y-2 pt-1">
-                                              <h5 className="text-[11px] font-bold text-primary">
-                                                📚 核心词汇提炼
-                                              </h5>
+                                              <h5 className="text-[11px] font-bold text-primary">核心词汇提炼</h5>
                                               <div className="flex flex-wrap gap-1.5">
-                                                {aiExplanations[qId].keyVocabulary.map(
+                                                {questionExplanations[qId].keyVocabulary.map(
                                                   (vocab, vIdx) => (
                                                     <div
                                                       key={vIdx}
@@ -1385,7 +1614,6 @@ function BankDetail() {
                                           )}
                                       </div>
                                     ) : (
-                                      /* Fallback to local explanation if getDetailedExplanation wasn't successful */
                                       <p className="text-xs leading-relaxed text-ink-soft pt-1">
                                         {q.explain}
                                       </p>
@@ -1560,7 +1788,7 @@ function BankDetail() {
                               ) : (
                                 <button
                                   onClick={() => {
-                                    toast.success("✨ 恭喜你！已完成当前真题小节！");
+                                    toast.success("✨ 恭喜你！已完成当前练习小节！");
                                     setSelectedSectionIndex(null);
                                   }}
                                   className="rounded-xl bg-ink text-background px-4 py-2.5 text-xs font-semibold hover:bg-ink/90 transition shadow-sm cursor-pointer whitespace-nowrap"
@@ -1579,7 +1807,7 @@ function BankDetail() {
                       <div className="flex items-center justify-between border-b border-border/40 pb-3">
                         <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1.5">
                           <PenTool className="h-4 w-4 animate-bounce" />
-                          <span>AI 阅卷作答面板</span>
+                          <span>详细批改作答面板</span>
                         </span>
 
                         <span className="text-xs font-mono text-ink-soft bg-muted px-2 py-0.5 rounded-md">
@@ -1623,7 +1851,7 @@ function BankDetail() {
                           localStorage.setItem(`writing_${bank.id}`, JSON.stringify(nextInputs));
                         }}
                         rows={10}
-                        placeholder="请在此处输入您的写作内容或翻译。完成后，点击下方「✨ 智能 AI 评分与批改」，系统将立即进行拼写、语法句式、深度学术词汇运用评估..."
+                        placeholder="请在此处输入你的写作内容或翻译。完成后点击下方评分按钮，系统会根据篇幅、结构、语法和表达完整度给出详细批改建议。"
                         className="w-full rounded-2xl border border-border bg-background p-4 text-xs outline-none transition focus:border-primary focus:ring-1 focus:ring-primary shadow-inner leading-relaxed"
                       />
 
@@ -1632,7 +1860,7 @@ function BankDetail() {
                         <button
                           onClick={() => {
                             const keyId = `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}`;
-                            handleAICorrection(
+                            handleLocalCorrection(
                               keyId,
                               writingInputs[keyId] || "",
                               sectionMaterial.writingPrompt || "Translation exercise",
@@ -1650,8 +1878,8 @@ function BankDetail() {
                             {isAnalyzing[
                               `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}`
                             ]
-                              ? "AI 正在细致分析语法中..."
-                              : "✨ 智能 AI 评分与批改"}
+                              ? "正在整理详细批改中..."
+                              : "开始评分与批改"}
                           </span>
                         </button>
 
@@ -1661,15 +1889,15 @@ function BankDetail() {
                             const nextRevealed = { ...revealed, [keyId]: "A" };
                             setRevealed(nextRevealed);
                             saveProgress(nextRevealed);
-                            toast.success("已解锁该篇目的真题官方标准参考解答！");
+                            toast.success("已解锁该篇目的参考解答！");
                           }}
                           className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-4 py-3 text-xs font-semibold text-ink-soft hover:bg-muted transition cursor-pointer"
                         >
-                          <span>解锁官方解答</span>
+                          <span>解锁参考解答</span>
                         </button>
                       </div>
 
-                      {/* AI Essay Correction Feedback Card */}
+                      {/* Local essay correction feedback card */}
                       {analysisResults[
                         `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}`
                       ] && (
@@ -1677,7 +1905,7 @@ function BankDetail() {
                           <div className="flex items-center justify-between border-b border-emerald-500/10 pb-2.5">
                             <div className="flex items-center gap-1.5 font-bold text-emerald-600 text-xs">
                               <Sparkles className="h-4 w-4" />
-                              <span>AI 智能作答评估反馈</span>
+                              <span>作答评估反馈</span>
                             </div>
                             <div className="flex items-baseline gap-0.5 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/20">
                               <span className="text-[9px] text-emerald-600 font-bold uppercase mr-1">
@@ -1694,7 +1922,18 @@ function BankDetail() {
                             </div>
                           </div>
 
-                          <div className="space-y-3.5 text-xs">
+                            <div className="space-y-3.5 text-xs">
+                            <div>
+                              <h5 className="font-bold text-emerald-800">定位反馈:</h5>
+                              <ul className="list-disc pl-4 mt-1.5 space-y-1.5 text-ink-soft">
+                                {analysisResults[
+                                  `${bank.id}_${selectedYear.replace(/\s+/g, "_")}_sec_${selectedSectionIndex}`
+                                ].highlights.map((item, itemIdx) => (
+                                  <li key={itemIdx}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+
                             <div>
                               <h5 className="font-bold text-emerald-800">📌 综合评语:</h5>
                               <p className="text-ink-soft mt-1 leading-relaxed">
@@ -1728,7 +1967,7 @@ function BankDetail() {
                           <div className="rounded-2xl border border-border bg-muted/30 p-4.5 space-y-2 animate-in fade-in duration-300">
                             <div className="flex items-center gap-1 text-xs font-bold text-ink">
                               <BookOpen className="h-3.5 w-3.5" />
-                              <span>官方真题范文 / 标准译文参考</span>
+                              <span>参考范文 / 标准译文</span>
                             </div>
                             <p className="text-xs leading-relaxed text-ink-soft whitespace-pre-line bg-card p-3 rounded-xl border border-border/40 font-serif">
                               {sectionMaterial.referenceAnswer}
@@ -1758,7 +1997,7 @@ function BankDetail() {
 
             <h3 className="font-display text-xl text-ink font-semibold flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              <span>必读：历年真题应该怎么刷？</span>
+              <span>必读：本题库应该怎么刷？</span>
             </h3>
 
             <div className="mt-5 space-y-4 text-sm leading-relaxed text-ink-soft">
@@ -1767,7 +2006,7 @@ function BankDetail() {
                   1
                 </span>
                 <div>
-                  <h4 className="font-semibold text-ink">第一轮：精读真题文章词汇</h4>
+                  <h4 className="font-semibold text-ink">第一轮：精读文章词汇</h4>
                   <p className="mt-1">
                     做完题不要只对答案，把上下文里遇到的每一个高纲、学术生词词组全部标注并精读，随时添加至收藏夹内，方便利用闪卡反复温习。
                   </p>
@@ -1791,10 +2030,9 @@ function BankDetail() {
                   3
                 </span>
                 <div>
-                  <h4 className="font-semibold text-ink">第三轮：作文翻译使用 AI 批改润色</h4>
+                  <h4 className="font-semibold text-ink">第三轮：作文翻译使用详细批改润色</h4>
                   <p className="mt-1">
-                    在真题写作与翻译中，不要只背诵模版。利用 WordMaster 独创的 AI
-                    智能阅卷批改工具，分析你文章的词汇与句式细节，升级为高分句型。
+                    在写作与翻译中，不要只背诵模版。利用系统的详细批改与结构反馈，分析你文章的词汇、句式和展开层次，逐步升级为高分表达。
                   </p>
                 </div>
               </div>
@@ -1804,7 +2042,7 @@ function BankDetail() {
               onClick={() => setShowBrushTip(false)}
               className="mt-6 w-full rounded-2xl bg-ink py-3 text-xs font-semibold text-background hover:bg-ink/90 transition shadow-sm cursor-pointer"
             >
-              开启真题提分之旅
+              开启专项练习
             </button>
           </div>
         </div>
@@ -1817,6 +2055,7 @@ function BankDetail() {
             className="fixed inset-0 z-40 bg-ink/[0.04] cursor-default"
             onClick={() => {
               setSelectedLookupWord(null);
+              setLookupDetails(null);
               setLookupCoords(null);
             }}
           />
@@ -1824,22 +2063,37 @@ function BankDetail() {
           {/* Floating Popover Word Definition Card — light, fresh minimalist cat style */}
           <div
             style={(() => {
-              const cardWidth = 360;
               const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1200;
+              const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 900;
+              const viewportPadding = 16;
+              const cardWidth = Math.min(336, viewportWidth - viewportPadding * 2);
+              const verticalGap = 10;
+              const cardMaxHeight = Math.min(390, viewportHeight - viewportPadding * 2 - 16);
               const wordCenter = lookupCoords.left + lookupCoords.width / 2;
               let left = wordCenter;
 
-              if (left - cardWidth / 2 < 16) {
-                left = cardWidth / 2 + 16;
+              if (left - cardWidth / 2 < viewportPadding) {
+                left = cardWidth / 2 + viewportPadding;
               }
-              if (left + cardWidth / 2 > viewportWidth - 16) {
-                left = viewportWidth - cardWidth / 2 - 16;
+              if (left + cardWidth / 2 > viewportWidth - viewportPadding) {
+                left = viewportWidth - cardWidth / 2 - viewportPadding;
               }
 
-              const top = lookupCoords.top + lookupCoords.height + 10;
+              const spaceBelow =
+                viewportHeight - (lookupCoords.top + lookupCoords.height) - viewportPadding;
+              const spaceAbove = lookupCoords.top - viewportPadding;
+              const shouldPlaceAbove = spaceBelow < 260 && spaceAbove > spaceBelow;
+              const belowTop = lookupCoords.top + lookupCoords.height + verticalGap;
+              const aboveTop = lookupCoords.top - cardMaxHeight - verticalGap;
+              const top = shouldPlaceAbove
+                ? Math.max(viewportPadding, aboveTop)
+                : Math.min(
+                    Math.max(viewportPadding, belowTop),
+                    viewportHeight - cardMaxHeight - viewportPadding,
+                  );
 
               return {
-                position: "absolute" as const,
+                position: "fixed" as const,
                 top: `${top}px`,
                 left: `${left}px`,
                 width: `${cardWidth}px`,
@@ -1847,20 +2101,18 @@ function BankDetail() {
                 zIndex: 50,
               };
             })()}
-            className="relative animate-in zoom-in-95 duration-150"
+            className="relative animate-in zoom-in-95 duration-150 pt-4"
           >
-            {/* Minimalist Cat Ears */}
-            {/* Left Ear */}
-            <div className="absolute -top-3 left-8 w-6 h-6 bg-card border-t border-l border-primary/15 rounded-tl-[70%] rounded-tr-[30%] rotate-[15deg] z-10 flex items-center justify-center shadow-[-2px_-2px_4px_rgba(0,0,0,0.02)]">
-              <div className="w-3.5 h-3.5 bg-rose-100/60 dark:bg-rose-950/40 rounded-tl-[60%] rounded-tr-[20%]" />
+            {/* Small exposed cat ears, aligned with the card's rounded top corners. */}
+            <div className="absolute -top-0.5 left-7 z-10 flex h-5 w-5 rotate-[13deg] items-center justify-center rounded-tl-[72%] rounded-tr-[24%] border border-[#e3e9e2] bg-[#f7f8f4] shadow-[-1px_-1px_3px_rgba(70,90,80,0.07)]">
+              <div className="h-2.5 w-2.5 rounded-tl-[66%] rounded-tr-[20%] bg-[#f5dfe3]" />
             </div>
-            {/* Right Ear */}
-            <div className="absolute -top-3 right-8 w-6 h-6 bg-card border-t border-r border-primary/15 rounded-tr-[70%] rounded-tl-[30%] -rotate-[15deg] z-10 flex items-center justify-center shadow-[2px_-2px_4px_rgba(0,0,0,0.02)]">
-              <div className="w-3.5 h-3.5 bg-rose-100/60 dark:bg-rose-950/40 rounded-tr-[60%] rounded-tl-[20%]" />
+            <div className="absolute -top-0.5 right-7 z-10 flex h-5 w-5 -rotate-[13deg] items-center justify-center rounded-tr-[72%] rounded-tl-[24%] border border-[#e3e9e2] bg-[#f7f8f4] shadow-[1px_-1px_3px_rgba(70,90,80,0.07)]">
+              <div className="h-2.5 w-2.5 rounded-tr-[66%] rounded-tl-[20%] bg-[#f5dfe3]" />
             </div>
 
             {/* Main Popover Body Container */}
-            <div className="rounded-3xl border border-primary/15 bg-card p-5 shadow-float relative overflow-hidden">
+            <div className="relative max-h-[390px] overflow-y-auto overflow-x-visible rounded-[1.6rem] border border-[#dfe6df] bg-[#f7f8f4] p-4.5 shadow-[0_16px_38px_rgba(70,90,80,0.14)]">
               {/* Inner background clip for soft decorative blob & cat face watermark */}
               <div
                 className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none"
@@ -1868,11 +2120,14 @@ function BankDetail() {
               >
                 {/* Soft decorative blob */}
                 <div
-                  className="absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-60"
-                  style={{ background: "var(--mint)" }}
+                  className="absolute -right-9 -top-9 h-22 w-22 rounded-full opacity-95"
+                  style={{ background: "#d6ece0" }}
                 />
                 {/* Subtle background cat watermark */}
-                <Cat className="absolute -right-4 -bottom-4 h-16 w-16 opacity-5 text-primary/80 rotate-[15deg]" />
+                <Cat className="absolute -right-4 -bottom-4 h-14 w-14 rotate-[15deg] text-primary/10" />
+                <div className="absolute left-2 top-8 h-px w-10 bg-primary/10" />
+                <div className="absolute left-1 top-12 h-px w-8 bg-primary/8" />
+                <div className="absolute right-2 bottom-10 h-px w-10 bg-primary/10" />
               </div>
 
               {/* Minimalist Cat Whiskers on Borders */}
@@ -1890,21 +2145,21 @@ function BankDetail() {
               </div>
 
               {/* Header: Word & Action Buttons */}
-              <div className="relative flex items-start justify-between gap-4">
-                <div className="space-y-1.5">
+              <div className="relative flex items-start justify-between gap-2">
+                <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-display text-xl font-semibold text-ink leading-none flex items-center gap-1.5">
-                      <Cat className="h-5 w-5 text-primary/80 shrink-0" />
+                    <h4 className="font-display text-2xl font-semibold text-ink leading-none flex items-center gap-1.5">
+                      <Cat className="h-5 w-5 text-primary/70 shrink-0" />
                       <span>{selectedLookupWord.word}</span>
                     </h4>
-                    {(aiTranslation?.phonetic || selectedLookupWord.phonetic) && (
-                      <span className="font-mono text-xs text-ink-soft italic">
-                        {aiTranslation?.phonetic || selectedLookupWord.phonetic}
+                    {(lookupDetails?.phonetic || selectedLookupWord.phonetic) && (
+                      <span className="font-mono text-xs text-ink-soft italic tracking-[0.1em]">
+                        {lookupDetails?.phonetic || selectedLookupWord.phonetic}
                       </span>
                     )}
                     <button
                       onClick={() => handlePronounce(selectedLookupWord.word)}
-                      className="rounded-full p-1 text-ink-soft hover:text-primary hover:bg-primary/5 transition cursor-pointer"
+                      className="rounded-full p-0.5 text-ink-soft hover:text-primary hover:bg-primary/5 transition cursor-pointer"
                       title="朗读发音"
                     >
                       <Volume2 className="h-4 w-4" />
@@ -1912,25 +2167,25 @@ function BankDetail() {
                   </div>
 
                   {/* Frequency tag */}
-                  <div className="flex items-center gap-1.5 select-none">
-                    <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-md font-semibold font-mono">
+                  <div className="mt-2 flex items-center gap-1.5 select-none">
+                    <span className="rounded-full border border-primary/20 bg-[#edf4ee] px-2 py-0.5 text-[11px] font-semibold text-primary">
                       考频
                     </span>
                     <span className="text-xs text-ink-soft">
                       {sectionMaterial?.vocabulary?.[selectedLookupWord.word.toLowerCase()] ||
                       sectionMaterial?.vocabulary?.[selectedLookupWord.word]
-                        ? "历年真题核心必考词汇"
-                        : "历年真题重要生词"}
+                        ? "核心必考词汇"
+                        : "重要生词"}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0 -mt-1">
+                <div className="flex items-center gap-0.5 shrink-0 -mt-1">
                   <button
                     onClick={() => handleToggleWordFav(selectedLookupWord)}
                     className={`rounded-full p-1.5 transition cursor-pointer ${
                       favoriteWords.includes(selectedLookupWord.word.toLowerCase())
-                        ? "text-accent hover:text-accent/80"
+                        ? "bg-amber-100 text-amber-500 hover:bg-amber-200"
                         : "text-ink-soft hover:text-primary hover:bg-primary/5"
                     }`}
                     title={
@@ -1942,7 +2197,7 @@ function BankDetail() {
                     <Star
                       className={`h-4.5 w-4.5 ${
                         favoriteWords.includes(selectedLookupWord.word.toLowerCase())
-                          ? "fill-current"
+                          ? "fill-current stroke-amber-500"
                           : ""
                       }`}
                     />
@@ -1950,9 +2205,10 @@ function BankDetail() {
                   <button
                     onClick={() => {
                       setSelectedLookupWord(null);
+                      setLookupDetails(null);
                       setLookupCoords(null);
                     }}
-                    className="rounded-full p-1.5 text-ink-soft hover:text-ink hover:bg-muted transition cursor-pointer"
+                    className="rounded-full bg-[#d6ece0] p-2 text-ink-soft hover:text-ink hover:bg-[#c9e5d7] transition cursor-pointer"
                     aria-label="关闭释义"
                   >
                     <X className="h-4 w-4" />
@@ -1962,19 +2218,7 @@ function BankDetail() {
 
               {/* Word Definition Body */}
               <div className="relative mt-4 space-y-3">
-                {isTranslating ? (
-                  <div className="space-y-2.5 py-1">
-                    <div className="flex items-center gap-1.5 text-primary animate-pulse">
-                      <Sparkles className="h-3.5 w-3.5 animate-spin duration-1000" />
-                      <span className="text-[11px] font-bold tracking-wider">
-                        AI 智能释义分析中...
-                      </span>
-                    </div>
-                    <div className="h-4 bg-muted/60 animate-pulse rounded w-3/4" />
-                    <div className="h-3 bg-muted/60 animate-pulse rounded w-1/2" />
-                    <div className="h-12 bg-muted/30 animate-pulse rounded-xl mt-2" />
-                  </div>
-                ) : aiTranslation ? (
+                {lookupDetails ? (
                   <div className="space-y-3">
                     {/* 本文释义 (In-text context meaning) */}
                     <div className="flex flex-col gap-1">
@@ -1982,14 +2226,13 @@ function BankDetail() {
                         <Cat className="h-3.5 w-3.5" />
                         <span className="text-[11px] font-bold tracking-wider">本文中含义</span>
                       </div>
-                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 pl-1 leading-relaxed animate-fade-in">
-                        {aiTranslation.contextDefinition}
+                      <p className="pl-1 text-sm font-semibold leading-relaxed text-emerald-600 animate-fade-in">
+                        {lookupDetails.contextDefinition}
                       </p>
                     </div>
 
                     {/* 常见意思 (Common definitions) */}
-                    {aiTranslation.commonDefinitions &&
-                      aiTranslation.commonDefinitions.length > 0 && (
+                    {lookupDetails.commonDefinitions.length > 0 && (
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                             <BookOpen className="h-3.5 w-3.5" />
@@ -1998,10 +2241,10 @@ function BankDetail() {
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-1.5 pl-1">
-                            {aiTranslation.commonDefinitions.map((def: string, i: number) => (
+                            {lookupDetails.commonDefinitions.map((def: string, i: number) => (
                               <span
                                 key={i}
-                                className="text-xs bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-lg border border-amber-200/50 dark:border-amber-800/30"
+                              className="rounded-full border border-[#f0d58d] bg-[#fcf4d8] px-2 py-0.5 text-[11px] text-amber-800"
                               >
                                 {def}
                               </span>
@@ -2010,20 +2253,14 @@ function BankDetail() {
                         </div>
                       )}
 
-                    {/* AI Example sentence */}
-                    {aiTranslation.example && (
-                      <div className="rounded-2xl bg-muted/40 border border-border/60 p-3 mt-1 space-y-1">
-                        <div className="text-[10px] text-ink-soft font-bold uppercase tracking-wider select-none">
+                    {lookupDetails.example && (
+                      <div className="mt-2 space-y-1.5 rounded-2xl border border-[#dde3db] bg-[#f3f4ef] p-3.5">
+                        <div className="text-xs font-bold uppercase tracking-wide text-ink-soft select-none">
                           情境例句 example
                         </div>
-                        <p className="text-xs text-ink leading-relaxed italic">
-                          {aiTranslation.example}
+                        <p className="text-[13px] text-ink leading-relaxed italic">
+                          {lookupDetails.example}
                         </p>
-                        {aiTranslation.exampleTranslation && (
-                          <p className="text-[11px] text-ink-soft leading-relaxed">
-                            {aiTranslation.exampleTranslation}
-                          </p>
-                        )}
                       </div>
                     )}
                   </div>
@@ -2055,9 +2292,9 @@ function BankDetail() {
               </div>
 
               {/* Footer prompt */}
-              <div className="relative mt-4 pt-3 border-t border-border/60">
-                <div className="rounded-xl bg-primary/8 border border-primary/15 px-3 py-1.5 text-[11px] text-primary flex items-center gap-1.5 select-none font-medium">
-                  <Sparkles className="h-3 w-3 shrink-0" />
+              <div className="relative mt-4 border-t border-[#dde3db] pt-3">
+                <div className="flex items-center gap-1.5 rounded-full border border-[#cad9cf] bg-[#e7eeea] px-3 py-1.5 text-xs font-medium text-primary">
+                  <Sparkles className="h-3.5 w-3.5 shrink-0" />
                   <span>已锁定情境语意，助力攻克长文阅读</span>
                 </div>
               </div>
@@ -2112,7 +2349,7 @@ function AnnotatedText({
 }: {
   text: string;
   vocabulary: Record<string, ReadingWord>;
-  onWordClick: (word: ReadingWord, el: HTMLElement, contextText?: string) => void;
+  onWordClick: (rawWord: string, el: HTMLElement, contextText?: string) => void;
   activeMode: "analyze" | "answer";
 }) {
   if (activeMode === "analyze") {
@@ -2134,7 +2371,7 @@ function AnnotatedText({
               return (
                 <span
                   key={index}
-                  onClick={(e) => onWordClick(vocabulary[vocabKey], e.currentTarget, text)}
+                  onClick={(e) => onWordClick(part, e.currentTarget, text)}
                   className="border-b-2 border-dashed border-primary text-primary hover:bg-primary/10 cursor-pointer transition-all font-semibold relative group px-0.5 rounded-sm"
                   title="考纲重点词"
                 >
@@ -2147,10 +2384,7 @@ function AnnotatedText({
             return (
               <span
                 key={index}
-                onClick={(e) => {
-                  const wordDef = lookupWord(part, vocabulary);
-                  onWordClick(wordDef, e.currentTarget, text);
-                }}
+                onClick={(e) => onWordClick(part, e.currentTarget, text)}
                 className="hover:bg-amber-100 text-ink cursor-pointer transition-all px-0.5 rounded-sm"
                 title="点击查词"
               >
@@ -2184,7 +2418,7 @@ function AnnotatedText({
           return (
             <span
               key={index}
-              onClick={(e) => onWordClick(vocabulary[vocabKey], e.currentTarget, text)}
+              onClick={(e) => onWordClick(part, e.currentTarget, text)}
               className="border-b border-dashed border-primary text-primary hover:text-primary/80 cursor-pointer transition-colors font-medium relative group px-0.5"
             >
               {part}
